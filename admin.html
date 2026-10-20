@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tour de contrôle — TrackPro</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="app-body">
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <a href="index.html" class="logo">
+          <span class="logo-icon">◉</span>
+          <span class="logo-text">TrackPro</span>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item active" data-section="dashboard" onclick="showSection('dashboard')">
+          <span class="nav-icon">◫</span>
+          <span>Tableau de bord</span>
+        </button>
+        <button type="button" class="nav-item" data-section="colis" onclick="showSection('colis')">
+          <span class="nav-icon">▤</span>
+          <span>Colis</span>
+        </button>
+        <button type="button" class="nav-item" data-section="map" onclick="showSection('map')">
+          <span class="nav-icon">◎</span>
+          <span>Carte live</span>
+        </button>
+        <button type="button" class="nav-item" data-section="settings" onclick="showSection('settings')">
+          <span class="nav-icon">⚙</span>
+          <span>Paramètres</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div class="user-details">
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-email" id="userEmail">admin@trackpro.com</div>
+          </div>
+        </div>
+        <button class="btn-logout" onclick="logout()">↗ Déconnexion</button>
+      </div>
+    </aside>
+
+    <main class="app-main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title" id="pageTitle">Tableau de bord</h1>
+        </div>
+        <div class="topbar-right">
+          <div class="status-pill">
+            <span class="status-dot"></span>
+            Système opérationnel
+          </div>
+        </div>
+      </header>
+
+      <section id="section-dashboard" class="section active">
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Colis totaux</div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-change positive">+12% ce mois</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">En transit</div>
+            <div class="stat-value" id="statTransit">0</div>
+            <div class="stat-change">En temps réel</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Livrés</div>
+            <div class="stat-value" id="statDelivered">0</div>
+            <div class="stat-change positive">Ce mois</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Distance totale</div>
+            <div class="stat-value" id="statDistance">0 km</div>
+            <div class="stat-change">Parcourue</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Colis récents</h3>
+              <button class="btn btn-primary" onclick="showSection('colis')">Voir tout →</button>
+            </div>
+            <div id="recentColisList" class="colis-list-compact"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Activité récente</h3>
+            </div>
+            <div id="activityLog" class="activity-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-colis" class="section">
+        <div class="section-header-bar">
+          <h2>Mes colis</h2>
+          <button class="btn btn-primary" onclick="showAddColisModal()">+ Nouveau colis</button>
+        </div>
+        <div id="colisFullList" class="colis-full-list"></div>
+      </section>
+
+      <section id="section-map" class="section">
+        <div class="map-layout">
+          <div class="map-panel">
+            <div class="panel-section">
+              <h3>Colis sélectionné</h3>
+              <select id="selectedColis" onchange="onSelectColis(this.value)">
+                <option value="">Sélectionner un colis...</option>
+              </select>
+            </div>
+
+            <div class="panel-section">
+              <h3>Définir l'itinéraire</h3>
+
+              <div class="form-group">
+                <label>Point de départ</label>
+                <div class="search-wrapper">
+                  <input type="text" id="startSearch" class="search-input" placeholder="Rechercher une ville ou une adresse" oninput="debounceSearch('start')" autocomplete="off" />
+                  <div id="startResults" class="search-results"></div>
+                </div>
+                <div id="startLocation" class="location-badge" style="display:none;"></div>
+              </div>
+
+              <div class="form-group">
+                <label>Point d'arrivée</label>
+                <div class="search-wrapper">
+                  <input type="text" id="endSearch" class="search-input" placeholder="Rechercher une ville ou une adresse" oninput="debounceSearch('end')" autocomplete="off" />
+                  <div id="endResults" class="search-results"></div>
+                </div>
+                <div id="endLocation" class="location-badge" style="display:none;"></div>
+              </div>
+
+              <div class="button-row">
+                <button class="btn btn-primary btn-block" onclick="calculateRoute()">Tracer l'itinéraire</button>
+                <button class="btn btn-ghost btn-block" onclick="clearRoute()">Effacer</button>
+              </div>
+
+              <div id="routeInfo" class="route-info" style="display:none;">
+                <div class="route-info-row"><span>📏 Distance</span><strong id="routeDistance">-</strong></div>
+                <div class="route-info-row"><span>⏱️ Durée estimée</span><strong id="routeDuration">-</strong></div>
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <h3>🎮 Contrôle du déplacement</h3>
+              <div class="form-group">
+                <label>Vitesse : <strong id="simSpeedValue">90</strong> km/h (10 à 1000 km/h)</label>
+                <input type="range" id="simSpeed" min="10" max="1000" step="10" value="90" oninput="updateSimSpeed()" />
+              </div>
+              <div class="form-group">
+                <label>Progression manuelle : <strong id="manualProgressValue">0%</strong></label>
+                <input type="range" id="manualProgress" min="0" max="100" value="0" oninput="onManualProgressInput(this.value)" onchange="onManualProgressChange(this.value)" />
+              </div>
+
+              <div class="control-grid">
+                <button class="btn btn-success" onclick="startSimulation()">▶ Démarrer</button>
+                <button class="btn btn-warning" onclick="pauseSimulation()">⏸ Pause</button>
+                <button class="btn btn-danger" onclick="stopParcel()">⏹ Arrêter</button>
+                <button class="btn btn-ghost" onclick="resetParcel()">↺ Reset</button>
+              </div>
+
+              <div id="trackingInfo" class="tracking-info" style="display:none;">
+                <div class="tracking-row"><span>Position actuelle</span><strong id="currentAddress">-</strong></div>
+                <div class="tracking-row"><span>Distance restante</span><strong id="distanceRemaining">-</strong></div>
+                <div class="tracking-row"><span>Temps restant</span><strong id="timeRemaining">-</strong></div>
+                <div class="tracking-row"><span>Progression</span><strong id="progressPercent">0%</strong></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressBar" style="width: 0%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="map-wrapper">
+            <div id="map"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-settings" class="section">
+        <div class="card">
+          <h3>Paramètres du compte</h3>
+          <p class="text-muted">Gérez vos informations personnelles et préférences.</p>
+          <div class="form-group">
+            <label>Nom complet</label>
+            <input type="text" id="settingsName" readonly />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="settingsEmail" readonly />
+          </div>
+          <div class="form-group">
+            <label>Entreprise</label>
+            <input type="text" id="settingsCompany" readonly />
+          </div>
+        </div>
+    </main>
+ 
+    <nav class="mobile-bottom-nav">
+      <button type="button" class="mobile-nav-item active" data-section="dashboard" onclick="showSection('dashboard')">
+        <span class="nav-icon">◫</span>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-section="colis" onclick="showSection('colis')">
+        <span class="nav-icon">▤</span>
+        <span>Colis</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-section="map" onclick="showSection('map')">
+        <span class="nav-icon">◎</span>
+        <span>Carte Live</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-section="settings" onclick="showSection('settings')">
+        <span class="nav-icon">⚙</span>
+        <span>Profil</span>
+      </button>
+    </nav>
+
+    <div id="addColisModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Nouveau colis</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Numéro de suivi *</label>
+            <input type="text" id="newTrackingNumber" placeholder="Ex: COL-2026-001" />
+          </div>
+          <div class="form-group">
+            <label>Destinataire *</label>
+            <input type="text" id="newDestinataire" placeholder="Nom complet" />
+          </div>
+          <div class="form-group">
+            <label>Adresse de destination *</label>
+            <input type="text" id="newAdresse" placeholder="Adresse complète" />
+          </div>
+          <div class="form-group">
+            <label>Expéditeur *</label>
+            <input type="text" id="newExpediteur" placeholder="Nom de l'expéditeur" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="newDescription" placeholder="Description du contenu"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+          <button class="btn btn-primary" onclick="addColis()">Créer le colis</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="reasonModal" class="modal">
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2 id="reasonTitle">Motif requis</h2>
+          <button class="modal-close" onclick="closeReasonModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted" id="reasonDescription">Veuillez indiquer la raison de cette action.</p>
+          <div class="form-group">
+            <label>Motif *</label>
+            <textarea id="reasonText" placeholder="Expliquez la raison..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeReasonModal()">Annuler</button>
+          <button class="btn btn-primary" id="reasonConfirmBtn">Confirmer</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>
