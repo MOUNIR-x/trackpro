@@ -187,6 +187,34 @@ test('blocks access to admin routes for invalid bearer tokens', async () => {
   assert.equal(response.status, 401);
 });
 
+test('falls back to SQLite when DATABASE_URL points to an unreachable Postgres host', async () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = 'postgresql://postgres:secret@db.invalid.example:5432/postgres';
+
+  try {
+    const app = createApp();
+    await app.locals.dbReady;
+
+    const uniqueEmail = `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+    const result = await requestJson(app, 'POST', '/api/auth/register', {
+      name: 'Fallback User',
+      email: uniqueEmail,
+      password: 'Password123!',
+      role: 'admin',
+    });
+
+    assert.equal(result.status, 201);
+    assert.ok(result.data.token);
+    assert.equal(result.data.user.email, uniqueEmail);
+  } finally {
+    if (originalDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+  }
+});
+
 test('does not hardcode Supabase credentials when env is missing', () => {
   const { resolveSupabaseConfig } = require('../app');
 

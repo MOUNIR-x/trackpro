@@ -108,10 +108,11 @@ body {
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 10px 12px;
+  min-height: 52px;
+  padding: 12px 14px;
   border: 1px solid var(--gray-300);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 16px;
   background: var(--white);
   font-family: inherit;
 }
@@ -559,6 +560,39 @@ body {
    RESPONSIVE DESIGN (SMARTPHONE ET TABLETTE)
    ========================================================================== */
 @media (max-width: 900px) {
+  .auth-container {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-left {
+    padding: 28px 20px 20px;
+    min-height: auto;
+  }
+
+  .auth-hero h1 {
+    font-size: 30px;
+    margin: 20px 0 12px;
+  }
+
+  .auth-hero p {
+    margin-bottom: 18px;
+  }
+
+  .auth-right {
+    padding: 20px 16px 36px;
+  }
+
+  .auth-form {
+    max-width: 100%;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    min-height: 52px;
+    font-size: 16px;
+  }
+
   .app-body {
     grid-template-columns: 1fr;
     display: block;

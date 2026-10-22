@@ -3,7 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('node:path');
 
-const { createDatabase, initializeDatabase, createUser, findUserByEmail, findUserById, createParcel, listParcels, getParcelByTrackingNumber, getParcelById, updateParcel, archiveParcel, appendParcelEvent, listParcelEvents, getParcelStats } = require('./db');
+const { createDatabase, initializeDatabase, isPostgresDatabase, createUser, findUserByEmail, findUserById, createParcel, listParcels, getParcelByTrackingNumber, getParcelById, updateParcel, archiveParcel, appendParcelEvent, listParcelEvents, getParcelStats, shouldRetryWithLocalSqlite } = require('./db');
 const { hashPassword, comparePassword, signToken, requireAuth, requireRole } = require('./auth');
 
 const VALID_STATUSES = new Set(['pending', 'in_transit', 'paused', 'stopped', 'delivered']);
@@ -181,12 +181,24 @@ function buildPublicParcel(parcel, events = []) {
 
 function createApp({ useMemoryDb = false } = {}) {
   const app = express();
-  const db = createDatabase(useMemoryDb);
+  let db = createDatabase(useMemoryDb);
 
   app.locals.db = db;
-  app.locals.dbReady = initializeDatabase(db).catch((error) => {
-    throw error;
-  });
+  app.locals.dbReady = (async () => {
+    try {
+      await initializeDatabase(db);
+    } catch (error) {
+      if (isPostgresDatabase(db) && shouldRetryWithLocalSqlite(error)) {
+        console.warn('PostgreSQL connection failed; falling back to local SQLite database.', error.message);
+        db = createDatabase(useMemoryDb, true);
+        app.locals.db = db;
+        await initializeDatabase(db);
+        return;
+      }
+
+      throw error;
+    }
+  })();
 
   const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((origin) => origin.trim()).filter(Boolean);
   app.use(cors({
@@ -226,6 +238,42 @@ function createApp({ useMemoryDb = false } = {}) {
     res.json({ ok: true, service: 'tracking-app' });
   });
 
+  app.post('/api/auth/register', async (req, res) => {
+    const { name, email, password, role, company } = req.body || {};
+    const safeName = sanitizeText(name);
+    const safeEmail = sanitizeText(email).toLowerCase();
+    const safePassword = typeof password === 'string' ? password : '';
+
+    if (!safeName || !isValidEmail(safeEmail) || !isStrongPassword(safePassword)) {
+      return res.status(400).json({ message: 'Nom, email et mot de passe valides sont requis.' });
+    }
+
+    const existingUser = await findUserByEmail(db, safeEmail);
+    if (existingUser) {
+      return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
+    }
+
+    const nextRole = role === 'user' ? 'user' : 'admin';
+    const user = await createUser(db, {
+      name: safeName,
+      email: safeEmail,
+      passwordHash: hashPassword(safePassword),
+      role: nextRole,
+      company: sanitizeText(company) || 'TrackPro',
+    });
+
+    const token = signToken(user);
+    return res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        company: user.company || 'TrackPro',
+      },
+    });
+  });
 
   app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body || {};

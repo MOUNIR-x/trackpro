@@ -25,6 +25,31 @@ function getToken() {
   return localStorage.getItem('trackpro_token');
 }
 
+function hasValidStoredToken() {
+  const token = getToken();
+  if (!token || !token.trim()) {
+    return false;
+  }
+
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) {
+      return false;
+    }
+
+    const padded = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = padded.length % 4 === 0 ? padded : padded + '='.repeat(4 - (padded.length % 4));
+    const payload = JSON.parse(atob(normalized));
+    if (!payload || typeof payload.exp !== 'number') {
+      return true;
+    }
+
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 function getSessionUser() {
   try {
     return JSON.parse(localStorage.getItem('trackpro_session') || 'null');
@@ -265,6 +290,11 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('trackpro_token');
+      localStorage.removeItem('trackpro_session');
+      window.location.href = 'login.html';
+    }
     throw new Error(data.message || 'Une erreur est survenue.');
   }
 
@@ -272,7 +302,9 @@ async function apiFetch(path, options = {}) {
 }
 
 function ensureSession() {
-  if (!getToken()) {
+  if (!hasValidStoredToken()) {
+    localStorage.removeItem('trackpro_token');
+    localStorage.removeItem('trackpro_session');
     window.location.href = 'login.html';
     return false;
   }
@@ -288,13 +320,17 @@ function parseRouteCoordinates(parcel) {
   try {
     const route = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (route.type === 'LineString' && Array.isArray(route.coordinates)) {
-      return route.coordinates;
+      return route.coordinates.map(([lng, lat]) => [Number(lng), Number(lat)]);
     }
   } catch {
     // ignore
   }
 
   return [];
+}
+
+function asLeafletLatLngCoordinates(routeCoordinates) {
+  return routeCoordinates.map(([lng, lat]) => [Number(lat), Number(lng)]);
 }
 
 function resolveParcelCoordinates(parcel) {
@@ -702,6 +738,27 @@ function routePointAtProgress(parcel, progress) {
   return [lat, lng];
 }
 
+function getRouteDistanceKm(parcel) {
+  const route = parseRouteCoordinates(parcel);
+  if (route.length < 2) {
+    return Number(parcel.distanceTotal) || 0;
+  }
+
+  let totalDistance = 0;
+  for (let index = 0; index < route.length - 1; index += 1) {
+    const [lng1, lat1] = route[index];
+    const [lng2, lat2] = route[index + 1];
+    const earthRadiusKm = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    totalDistance += earthRadiusKm * c;
+  }
+
+  return Number.isFinite(totalDistance) ? totalDistance : Number(parcel.distanceTotal) || 0;
+}
+
 function renderHighlightedRoute(parcel) {
   if (!state.map || !parcel) return;
 
@@ -712,7 +769,7 @@ function renderHighlightedRoute(parcel) {
     state.map.removeLayer(state.routePolyline);
   }
 
-  const latLngRoute = route.map(([lng, lat]) => [lat, lng]);
+  const latLngRoute = asLeafletLatLngCoordinates(route);
   state.routePolyline = L.polyline(latLngRoute, {
     color: getRouteColor(parcel.status),
     weight: 5,
@@ -811,7 +868,7 @@ function renderMapMarkers(preserveView = false) {
   if (!preserveView) {
     const boundsPoints = parseRouteCoordinates(selectedParcel);
     if (boundsPoints.length >= 2) {
-      const latLngBounds = boundsPoints.map(([lng, lat]) => [lat, lng]);
+      const latLngBounds = asLeafletLatLngCoordinates(boundsPoints);
       state.map.fitBounds(latLngBounds, { padding: [35, 35] });
     } else {
       state.map.setView(progressPoint, 6);
@@ -882,22 +939,14 @@ async function advanceSimulationTick() {
   }
 
   const speed = Math.max(10, Math.min(1000, Number(parcel.simulationSpeed) || 90));
-  const distKm = Math.max(50, Number(parcel.distanceTotal) || 1000);
-
-  // Calcul temps réel basé sur les vraies minutes :
-  // Chaque seconde de simulation simule 1 minute réelle de trajet.
-  // Distance parcourue en 1 min de trajet : (speed / 60) km.
-  // À vitesse faible (ex. 20 km/h), le colis avance lentement au rythme réel.
-  // En augmentant la jauge jusqu'à 1000 km/h, le déplacement accélère fortement !
-  const kmPerTick = (speed / 60) * 1;
-  const increment = (kmPerTick / distKm) * 100;
+  const routeDistanceKm = Math.max(0.1, getRouteDistanceKm(parcel) || Number(parcel.distanceTotal) || 1);
+  const distanceMovedKm = (speed / 3600) * 1;
+  const increment = (distanceMovedKm / routeDistanceKm) * 100;
   const nextProgress = clampProgress(currentProgress + increment);
   const nextPoint = routePointAtProgress(parcel, nextProgress);
 
-  // 1. Déplacer le marqueur immédiatement sur la carte
   applyProgressToMap(parcel, nextProgress, nextPoint);
 
-  // 2. Persister dans Supabase
   apiFetch(`/api/admin/parcels/${parcel.id}`, {
     method: 'PATCH',
     body: JSON.stringify({
@@ -1125,6 +1174,39 @@ function generateGreatCirclePoints(start, end, numPoints = 50) {
   return { coordinates, distanceKm };
 }
 
+function generateRoadLikeRoute(start, end, numPoints = 26) {
+  const direct = generateGreatCirclePoints(start, end, numPoints);
+  const points = direct.coordinates;
+  if (points.length < 2) {
+    return points;
+  }
+
+  const latDiff = end.lat - start.lat;
+  const lngDiff = end.lng - start.lng;
+  const lateralScale = Math.min(0.18, Math.max(0.04, Math.hypot(latDiff, lngDiff) * 0.09));
+  const lateralDirLat = -lngDiff * lateralScale;
+  const lateralDirLng = latDiff * lateralScale;
+  const turnBias = Math.sign(latDiff || 1) * 0.4;
+  const roadPoints = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const f = i / (points.length - 1);
+    const baseLat = points[i][0];
+    const baseLng = points[i][1];
+    const bend = Math.sin(f * Math.PI) * turnBias;
+    const curve = Math.sin(f * Math.PI * 2) * 0.35;
+    const offsetLat = (lateralDirLat * (0.3 + curve)) + (bend * (Math.abs(latDiff) > 0.1 ? 0.12 : 0.05));
+    const offsetLng = (lateralDirLng * (0.3 + curve)) + (bend * (Math.abs(lngDiff) > 0.1 ? 0.12 : 0.05));
+
+    roadPoints.push([
+      Number((baseLat + offsetLat).toFixed(5)),
+      Number((baseLng + offsetLng).toFixed(5)),
+    ]);
+  }
+
+  return roadPoints;
+}
+
 async function calculateRoute() {
   const selectedParcel = getSelectedParcel();
   if (!selectedParcel) {
@@ -1152,7 +1234,6 @@ async function calculateRoute() {
   let distanceKm = 0;
   let durationMinutes = 0;
 
-  // 1. Tenter OSRM routier
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${state.startPoint.lng},${state.startPoint.lat};${state.endPoint.lng},${state.endPoint.lat}?overview=full&geometries=geojson`;
     const result = await fetch(url);
@@ -1166,12 +1247,10 @@ async function calculateRoute() {
     }
   } catch { /* OSRM fail, fallback grand cercle */ }
 
-  // 2. Si pas de route routière (ex. Somalie -> Belgique, transcontinental), utiliser le Grand Cercle géodésique
   if (!coordinates.length) {
-    const gc = generateGreatCirclePoints(state.startPoint, state.endPoint, 60);
-    coordinates = gc.coordinates;
-    distanceKm = gc.distanceKm;
-    // Vitesse estimée transport aérien/maritime combiné ~ 80 km/h
+    const gc = generateRoadLikeRoute(state.startPoint, state.endPoint, 40);
+    coordinates = gc;
+    distanceKm = Math.round((generateGreatCirclePoints(state.startPoint, state.endPoint, 2).distanceKm || 0) * 10) / 10;
     durationMinutes = Math.round((distanceKm / 80) * 60);
   }
 

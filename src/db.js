@@ -17,9 +17,38 @@ function getDatabasePath(useMemoryDb) {
   return path.join(databaseDir, 'tracking.db');
 }
 
-function createDatabase(useMemoryDb = false) {
-  if (process.env.DATABASE_URL && !useMemoryDb) {
-    const databaseUrl = process.env.DATABASE_URL;
+function shouldUsePostgresDatabase(databaseUrl) {
+  if (!databaseUrl || typeof databaseUrl !== 'string') {
+    return false;
+  }
+
+  const trimmed = databaseUrl.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    return ['postgres:', 'postgresql:'].includes(parsedUrl.protocol) && Boolean(parsedUrl.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function shouldRetryWithLocalSqlite(error) {
+  if (!error) {
+    return false;
+  }
+
+  const message = String(error.message || error).toLowerCase();
+  return /enotfound|econnrefused|econnreset|timeout|connection refused|password authentication failed|could not connect/.test(message);
+}
+
+function createDatabase(useMemoryDb = false, forceSqlite = false) {
+  const databaseUrl = process.env.DATABASE_URL;
+  const canUsePostgres = !forceSqlite && !useMemoryDb && shouldUsePostgresDatabase(databaseUrl);
+
+  if (canUsePostgres) {
     const useSsl = process.env.NODE_ENV === 'production' || databaseUrl.includes('supabase.co');
 
     return new Pool({
@@ -415,6 +444,8 @@ async function getParcelStats(db) {
 }
 
 module.exports = {
+  isPostgresDatabase,
+  shouldRetryWithLocalSqlite,
   createDatabase,
   initializeDatabase,
   run,

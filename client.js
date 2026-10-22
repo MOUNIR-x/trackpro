@@ -116,13 +116,17 @@ function parseRouteCoordinates(parcel) {
   try {
     const route = typeof routeRaw === 'string' ? JSON.parse(routeRaw) : routeRaw;
     if (route.type === 'LineString' && Array.isArray(route.coordinates)) {
-      return route.coordinates;
+      return route.coordinates.map(([lng, lat]) => [Number(lng), Number(lat)]);
     }
   } catch {
     // ignore
   }
 
   return [];
+}
+
+function asLatLngFromRoute(routeCoordinates) {
+  return routeCoordinates.map(([lng, lat]) => [Number(lat), Number(lng)]);
 }
 
 function resolveMapCenter(parcel) {
@@ -272,7 +276,7 @@ function initClientMap(parcel) {
     noWrap: false,
   }).addTo(clientMapInstance);
 
-  const routePoints = parseRouteCoordinates(parcel).map(([lngValue, latValue]) => [latValue, lngValue]);
+  const routePoints = asLatLngFromRoute(parseRouteCoordinates(parcel));
   if (routePoints.length > 1) {
     const statusKey = (parcel.status || 'pending').toString().trim().toLowerCase();
     const routeColor = {
@@ -338,7 +342,7 @@ function updateClientMap(parcel) {
     currentPos = [latA + (latB - latA) * ratio, lngA + (lngB - lngA) * ratio];
 
     // Vérifier si la polyline doit être créée ou mise à jour
-    const routePoints = coords.map(([lngValue, latValue]) => [latValue, lngValue]);
+    const routePoints = asLatLngFromRoute(coords);
     if (!clientRoutePolyline) {
       clientRoutePolyline = L.polyline(routePoints, {
         color: '#0ea5e9',

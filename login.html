@@ -57,6 +57,11 @@
     <script>
       const trackproSupabaseClient = window.trackproSupabase;
 
+      function clearAuthState() {
+        localStorage.removeItem('trackpro_token');
+        localStorage.removeItem('trackpro_session');
+      }
+
       function persistSession(session) {
         const user = session?.user;
         const sessionUser = {
@@ -126,6 +131,7 @@
             return;
           }
 
+          clearAuthState();
           throw new Error('Identifiants invalides.');
         } catch (error) {
           alert(error.message || 'Erreur de connexion');
@@ -139,8 +145,26 @@
         if (e.key === 'Enter') handleLogin();
       });
 
-      if (localStorage.getItem('trackpro_token')) {
-        window.location.href = 'admin.html';
+      const storedToken = localStorage.getItem('trackpro_token');
+      if (storedToken && storedToken.trim() !== '') {
+        try {
+          const payloadPart = storedToken.split('.')[1];
+          if (payloadPart) {
+            const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+            const padded = normalized.length % 4 === 0 ? normalized : normalized + '='.repeat(4 - (normalized.length % 4));
+            const payload = JSON.parse(atob(padded));
+            const isValid = !payload.exp || Number(payload.exp) * 1000 > Date.now();
+            if (isValid) {
+              window.location.href = 'admin.html';
+            } else {
+              clearAuthState();
+            }
+          } else {
+            clearAuthState();
+          }
+        } catch {
+          clearAuthState();
+        }
       }
     </script>
   </body>
