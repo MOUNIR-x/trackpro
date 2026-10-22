@@ -234,6 +234,18 @@ function createApp({ useMemoryDb = false } = {}) {
     res.sendFile(path.join(staticRoot, 'index.html'));
   });
 
+  app.get('/admin', (req, res) => {
+    res.sendFile(path.join(staticRoot, 'admin.html'));
+  });
+
+  app.get('/client', (req, res) => {
+    res.sendFile(path.join(staticRoot, 'client.html'));
+  });
+
+  app.get('/login', (req, res) => {
+    res.sendFile(path.join(staticRoot, 'login.html'));
+  });
+
   app.get('/health', (req, res) => {
     res.json({ ok: true, service: 'tracking-app' });
   });
