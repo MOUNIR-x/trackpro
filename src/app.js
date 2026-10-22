@@ -188,8 +188,9 @@ function createApp({ useMemoryDb = false } = {}) {
     try {
       await initializeDatabase(db);
     } catch (error) {
-      if (isPostgresDatabase(db) && shouldRetryWithLocalSqlite(error)) {
-        console.warn('PostgreSQL connection failed; falling back to local SQLite database.', error.message);
+      if (isPostgresDatabase(db) || shouldRetryWithLocalSqlite(error)) {
+        const fallbackReason = error?.message || String(error || 'Unknown database startup error');
+        console.warn('Database startup failed; falling back to local SQLite database.', fallbackReason);
         db = createDatabase(useMemoryDb, true);
         app.locals.db = db;
         await initializeDatabase(db);
@@ -201,9 +202,32 @@ function createApp({ useMemoryDb = false } = {}) {
   })();
 
   const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((origin) => origin.trim()).filter(Boolean);
+  const defaultAllowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:8080',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:8080',
+    'https://*.vercel.app',
+  ];
+  const effectiveAllowedOrigins = [...new Set([...allowedOrigins, ...defaultAllowedOrigins])];
+
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const isAllowed = effectiveAllowedOrigins.some((pattern) => {
+        if (pattern === '*') return true;
+        if (pattern.includes('*')) {
+          const regex = new RegExp(`^${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*')}$`);
+          return regex.test(origin);
+        }
+        return pattern === origin;
+      });
+
+      if (isAllowed) {
         callback(null, true);
         return;
       }

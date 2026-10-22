@@ -41,7 +41,7 @@ function shouldRetryWithLocalSqlite(error) {
   }
 
   const message = String(error.message || error).toLowerCase();
-  return /enotfound|econnrefused|econnreset|timeout|connection refused|password authentication failed|could not connect/.test(message);
+  return /enotfound|econnrefused|econnreset|timeout|connection refused|password authentication failed|could not connect|self-signed certificate|certificate|ssl|handshake|undefined:|invalid connection|transport end|closed unexpectedly|too many clients|database does not exist|role does not exist/.test(message);
 }
 
 function createDatabase(useMemoryDb = false, forceSqlite = false) {
