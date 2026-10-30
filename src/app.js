@@ -240,6 +240,17 @@ function createApp({ useMemoryDb = false } = {}) {
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan('dev'));
 
+  app.use(async (req, res, next) => {
+    try {
+      if (app.locals.dbReady) {
+        await app.locals.dbReady;
+      }
+      return next();
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/admin/')) {
       const authHeader = req.headers.authorization || '';
@@ -612,4 +623,20 @@ function createApp({ useMemoryDb = false } = {}) {
   return app;
 }
 
-module.exports = { createApp };
+let defaultApp = null;
+function getDefaultApp() {
+  if (!defaultApp) {
+    defaultApp = createApp();
+  }
+  return defaultApp;
+}
+
+function handler(req, res) {
+  return getDefaultApp()(req, res);
+}
+
+handler.createApp = createApp;
+handler.default = handler;
+
+module.exports = handler;
+module.exports.createApp = createApp;
