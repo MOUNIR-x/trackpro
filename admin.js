@@ -1,4 +1,4 @@
-const apiBase = window.API_BASE || 'http://localhost:3000';
+const apiBase = window.API_BASE || (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '3000' && window.location.port !== '') ? 'http://localhost:3000' : '');
 const TRACKING_COLORS = {
   pending: '#0a0a0a',
   in_transit: '#0ea5e9',

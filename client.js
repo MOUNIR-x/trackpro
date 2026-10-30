@@ -4,7 +4,7 @@ let clientRoutePolyline = null;
 let trackingRefreshTimer = null;
 let activeTrackingNumber = '';
 
-const apiBase = window.API_BASE || 'http://localhost:3000';
+const apiBase = window.API_BASE || (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '3000' && window.location.port !== '') ? 'http://localhost:3000' : '');
 
 function normalizePublicParcel(row) {
   if (!row) return null;

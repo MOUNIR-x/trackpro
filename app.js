@@ -23,7 +23,7 @@
 
   const config = resolveSupabaseConfig();
 
-  root.API_BASE = root.API_BASE || 'http://localhost:3000';
+  root.API_BASE = root.API_BASE || (typeof window !== 'undefined' && window.location && (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '3000' && window.location.port !== '')) ? 'http://localhost:3000' : '');
   root.SUPABASE_URL = config.url;
   root.SUPABASE_ANON_KEY = config.key;
 
