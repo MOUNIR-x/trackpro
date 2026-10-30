@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const sqlite3 = require('sqlite3').verbose();
 const { Pool } = require('pg');
@@ -12,9 +13,18 @@ function getDatabasePath(useMemoryDb) {
     return ':memory:';
   }
 
-  const databaseDir = path.resolve(__dirname, '../data');
-  fs.mkdirSync(databaseDir, { recursive: true });
-  return path.join(databaseDir, 'tracking.db');
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+  const databaseDir = isServerless
+    ? path.join(os.tmpdir(), 'tracking-app-data')
+    : path.resolve(__dirname, '../data');
+
+  try {
+    fs.mkdirSync(databaseDir, { recursive: true });
+    return path.join(databaseDir, 'tracking.db');
+  } catch (err) {
+    console.warn('Could not create local database directory, using in-memory database.', err.message);
+    return ':memory:';
+  }
 }
 
 function shouldUsePostgresDatabase(databaseUrl) {
