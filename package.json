@@ -4,6 +4,7 @@
   "description": "Tracking application backend for parcel monitoring and public tracking",
   "main": "src/server.js",
   "scripts": {
+    "build": "node -e \"const fs = require('fs'); fs.mkdirSync('public', {recursive: true}); ['styles.css','landing.css','admin.js','client.js','app.js','admin.html','client.html','login.html','index.html'].forEach(f => fs.existsSync(f) && fs.copyFileSync(f, 'public/' + f));\"",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test"
