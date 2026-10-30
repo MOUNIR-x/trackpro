@@ -3,245 +3,372 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TrackPro — Suivi de colis</title>
+    <title>TrackPro — Plateforme Logistique & Suivi de Colis Temps Réel</title>
+    <meta name="description" content="TrackPro : Solution haute précision de suivi logistique par satellite, télémétrie GPS en direct et gestion sécurisée des expéditions." />
     <link rel="stylesheet" href="landing.css" />
   </head>
   <body>
-    <nav class="navbar">
+    <!-- BARRE DE NAVIGATION SUPÉRIEURE -->
+    <header class="navbar">
       <div class="nav-container">
         <a href="index.html" class="logo">
-          <span class="logo-icon">◉</span>
-          <span class="logo-text">TrackPro</span>
+          <span class="logo-badge">◉</span>
+          <span class="logo-text">Track<span>Pro</span></span>
         </a>
-        <div class="nav-links">
-          <a href="#features">Fonctionnalités</a>
-          <a href="#how">Comment ça marche</a>
-          <a href="#pricing">Tarifs</a>
-          <a href="client.html" class="nav-link-client">Suivre un colis</a>
-          <a href="login.html" class="btn-nav">Espace Pro</a>
-        </div>
+        <nav class="nav-links">
+          <a href="#features">Technologie</a>
+          <a href="#how">Fonctionnement</a>
+          <a href="#security">Sécurité</a>
+          <a href="client.html" class="nav-link-client">
+            <span>📡</span> Suivre un colis
+          </a>
+          <a href="login.html" class="btn-nav">Connexion Admin</a>
+        </nav>
       </div>
-    </nav>
+    </header>
 
-    <section class="hero">
-      <div class="hero-content">
-        <div class="hero-badge">🚀 Nouveau : Suivi intelligent 2026</div>
-        <h1 class="hero-title">
-          Le suivi de colis<br />
-          <span class="gradient-text">réinventé.</span>
-        </h1>
-        <p class="hero-subtitle">
-          Visualisez chaque étape du parcours de vos envois en temps réel.
-          Précision GPS, notifications, interface intuitive.
-        </p>
-        <div class="hero-cta">
-          <a href="login.html" class="btn btn-primary">Commencer gratuitement</a>
-          <a href="client.html" class="btn btn-secondary">Suivre un colis →</a>
+    <!-- SECTION HÉROÏQUE AVEC FOND VIDÉO/IMAGE HAUTE RÉSOLUTION -->
+    <main>
+      <section class="hero-wrapper">
+        <div class="hero-media-container">
+          <!-- Vidéo de logistique globale haute performance en boucle -->
+          <video class="hero-video-bg" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=80">
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-top-view-of-a-cargo-ship-in-the-sea-43615-large.mp4" type="video/mp4" />
+          </video>
+          <div class="hero-overlay"></div>
         </div>
-        <div class="hero-stats">
-          <div class="stat">
-            <div class="stat-value">99.9%</div>
-            <div class="stat-label">Disponibilité</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">2M+</div>
-            <div class="stat-label">Colis suivis</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">150+</div>
-            <div class="stat-label">Pays couverts</div>
-          </div>
-        </div>
-      </div>
 
-      <div class="hero-visual">
-        <div class="mock-dashboard">
-          <div class="mock-header">
-            <div class="mock-dots"><span></span><span></span><span></span></div>
-            <div class="mock-title">Tableau de bord</div>
-          </div>
-          <div class="mock-body">
-            <div class="mock-map">
-              <div class="mock-route"></div>
-              <div class="mock-marker start"></div>
-              <div class="mock-marker moving"></div>
-              <div class="mock-marker end"></div>
+        <div class="hero">
+          <!-- CÔTÉ GAUCHE : TEXTE & RECHERCHE RAPIDE -->
+          <div class="hero-content">
+            <div class="hero-badge-pill">
+              <span class="badge-pulse"></span>
+              <span>TÉLÉMÉTRIE SATELLITE ACTIVE • VERSION 2.6</span>
             </div>
-            <div class="mock-sidebar">
-              <div class="mock-item active">
-                <div class="mock-item-icon">📦</div>
-                <div class="mock-item-info">
-                  <div class="mock-item-title">COL-2026-001</div>
-                  <div class="mock-item-status">En transit</div>
+
+            <h1 class="hero-title">
+              Le suivi de fret haute précision <br />
+              <span class="gradient-text">au mètre près.</span>
+            </h1>
+
+            <p class="hero-subtitle">
+              Supervisez le trajet de vos expéditions avec une précision GPS en temps réel.
+              Calcul d'ETA prédictif, alertes de transit et contrôle unifié de vos opérations.
+            </p>
+
+            <!-- FORMULAIRE DE SUIVI INSTANTANÉ DIRECT -->
+            <form id="heroTrackForm" class="hero-track-box">
+              <span class="track-icon">🔍</span>
+              <input
+                type="text"
+                id="heroTrackingInput"
+                class="hero-track-input"
+                placeholder="Entrez votre numéro de suivi (ex : COL-2026-001)"
+                autocomplete="off"
+                required
+              />
+              <button type="submit" class="btn-track-submit">
+                <span>Suivre</span>
+                <span>→</span>
+              </button>
+            </form>
+
+            <div class="hero-quick-demo">
+              <span>Exemples en direct :</span>
+              <a href="client.html?tracking=COL-2026-001" class="demo-chip">COL-2026-001</a>
+              <a href="client.html?tracking=COL-2026-002" class="demo-chip">COL-2026-002</a>
+              <a href="client.html?tracking=COL-2026-003" class="demo-chip">COL-2026-003</a>
+            </div>
+
+            <div class="hero-actions-row">
+              <a href="login.html" class="btn-hero-admin">
+                <span>🔒</span> Accès Espace Administrateur
+              </a>
+              <a href="client.html" class="btn-hero-admin">
+                <span>🌍</span> Portail Public de Suivi
+              </a>
+            </div>
+
+            <!-- STATISTIQUES EN TEMPS RÉEL -->
+            <div class="hero-stats">
+              <div class="stat-item">
+                <div class="stat-value">99.98%</div>
+                <div class="stat-label">Précision GPS</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">&lt; 250ms</div>
+                <div class="stat-label">Latence Télémétrique</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">180+</div>
+                <div class="stat-label">Pays Connectés</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CÔTÉ DROIT : COCKPIT TÉLÉMÉTRIQUE 3D GLASSMORPHISM -->
+          <div class="hero-cockpit">
+            <div class="cockpit-card">
+              <div class="cockpit-topbar">
+                <div class="cockpit-dots">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cockpit-live-tag">
+                  <span class="cockpit-live-dot"></span>
+                  RADAR SATELLITE EN DIRECT
                 </div>
               </div>
-              <div class="mock-item">
-                <div class="mock-item-icon">📦</div>
-                <div class="mock-item-info">
-                  <div class="mock-item-title">COL-2026-002</div>
-                  <div class="mock-item-status">Livré</div>
+
+              <!-- CARTE RADAR ANIMÉE -->
+              <div class="cockpit-map-view">
+                <div class="radar-ring r1"></div>
+                <div class="radar-ring r2"></div>
+                <div class="radar-ring r3"></div>
+                <div class="radar-sweep"></div>
+
+                <!-- LIGNE DE TRAJET SVG -->
+                <svg class="cockpit-route-svg" viewBox="0 0 300 200">
+                  <path
+                    d="M 30,150 Q 120,40 240,80"
+                    fill="none"
+                    stroke="rgba(6, 182, 212, 0.5)"
+                    stroke-width="3"
+                    stroke-dasharray="6,4"
+                  />
+                  <!-- Points départ et arrivée -->
+                  <circle cx="30" cy="150" r="5" fill="#10b981" />
+                  <circle cx="240" cy="80" r="5" fill="#f43f5e" />
+                </svg>
+
+                <!-- CIBLE VÉHICULE EN MOUVEMENT -->
+                <div class="cockpit-marker-pulse">
+                  <div class="pulse-target"></div>
+                  <div class="pulse-tooltip">COL-2026-001 • 82 km/h</div>
+                </div>
+              </div>
+
+              <!-- DÉTAILS DE LA COURSE -->
+              <div class="cockpit-details-panel">
+                <div class="cockpit-info-header">
+                  <span class="tracking-ref-badge">COL-2026-001 [Transit Lyon]</span>
+                  <span class="status-pill-active">En route</span>
+                </div>
+
+                <div class="cockpit-telemetry-grid">
+                  <div class="telemetry-box">
+                    <div class="telemetry-title">Vitesse GPS</div>
+                    <div class="telemetry-data">82.4 km/h</div>
+                  </div>
+                  <div class="telemetry-box">
+                    <div class="telemetry-title">Cap & Direction</div>
+                    <div class="telemetry-data">Sud-Est (142°)</div>
+                  </div>
+                  <div class="telemetry-box">
+                    <div class="telemetry-title">Arrivée estimée</div>
+                    <div class="telemetry-data">18:45</div>
+                  </div>
+                </div>
+
+                <div class="cockpit-progress-container">
+                  <div class="progress-labels">
+                    <span>Progression du parcours</span>
+                    <strong style="color: var(--accent-cyan-light)">74%</strong>
+                  </div>
+                  <div class="progress-track-bg">
+                    <div class="progress-fill-bar"></div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="features" class="features">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-tag">Fonctionnalités</div>
-          <h2 class="section-title">Tout ce dont vous avez besoin</h2>
-          <p class="section-subtitle">Une plateforme complète pour gérer et suivre vos expéditions</p>
-        </div>
-
-        <div class="features-grid">
-          <div class="feature-card">
-            <div class="feature-icon">📍</div>
-            <h3>Géolocalisation précise</h3>
-            <p>Suivez vos colis en temps réel avec une précision sur tous les continents.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">⚡</div>
-            <h3>Notifications instantanées</h3>
-            <p>Recevez des alertes à chaque étape : expédition, transit, livraison.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">🗺️</div>
-            <h3>Carte interactive</h3>
-            <p>Visualisez le parcours complet sur une carte dynamique et intuitive.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">🔒</div>
-            <h3>Sécurité maximale</h3>
-            <p>Vos données sont chiffrées et protégées.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">📊</div>
-            <h3>Analyses avancées</h3>
-            <p>Statistiques détaillées sur performance, délais et volumes.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">🌍</div>
-            <h3>Multi-langues</h3>
-            <p>Interface disponible en français et dans plusieurs langues.</p>
+      <!-- BANDEAU DE COUVERTURE LOGISTIQUE -->
+      <section class="network-banner">
+        <div class="container network-grid">
+          <div class="network-tagline">Réseaux & Partenaires Internationaux</div>
+          <div class="network-items">
+            <span class="network-item">✈️ SkyCargo Alliance</span>
+            <span class="network-item">🚢 Global Maritime Freight</span>
+            <span class="network-item">🚆 TransEurope Express</span>
+            <span class="network-item">📦 InterContinental Relay</span>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="how" class="how-it-works">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-tag">Comment ça marche</div>
-          <h2 class="section-title">Simple comme 1, 2, 3</h2>
-        </div>
-
-        <div class="steps">
-          <div class="step">
-            <div class="step-number">01</div>
-            <h3>Créez votre compte</h3>
-            <p>Inscrivez-vous en quelques secondes et accédez à votre tableau de bord.</p>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step">
-            <div class="step-number">02</div>
-            <h3>Enregistrez vos colis</h3>
-            <p>Ajoutez vos expéditions avec les informations d'envoi et de destination.</p>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step">
-            <div class="step-number">03</div>
-            <h3>Suivez en temps réel</h3>
-            <p>Visualisez chaque déplacement sur la carte et recevez des alertes.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="pricing" class="pricing">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-tag">Tarifs</div>
-          <h2 class="section-title">Des offres adaptées à vos besoins</h2>
-        </div>
-
-        <div class="pricing-grid">
-          <div class="pricing-card">
-            <div class="pricing-name">Starter</div>
-            <div class="pricing-price">Gratuit</div>
-            <div class="pricing-desc">Pour les particuliers</div>
-            <ul class="pricing-features">
-              <li>✓ 5 colis actifs</li>
-              <li>✓ Suivi basique</li>
-              <li>✓ Notifications email</li>
-              <li>✓ Support communautaire</li>
-            </ul>
-            <a href="login.html" class="btn btn-secondary">Commencer</a>
+      <!-- SECTION FONCTIONNALITÉS / TECHNOLOGIE -->
+      <section id="features" class="features-section">
+        <div class="container">
+          <div class="section-head">
+            <span class="section-tag-pill">Haute Technologie</span>
+            <h2 class="section-h2">Une infrastructure conçue pour la certitude</h2>
+            <p class="section-subtext">
+              TrackPro réunit télémétrie satellitaire, cartographie dynamique OpenStreetMap et alertes temps réel sur une plateforme robuste et sécurisée.
+            </p>
           </div>
 
-          <div class="pricing-card featured">
-            <div class="pricing-badge">Populaire</div>
-            <div class="pricing-name">Pro</div>
-            <div class="pricing-price">29€<span>/mois</span></div>
-            <div class="pricing-desc">Pour les professionnels</div>
-            <ul class="pricing-features">
-              <li>✓ Colis illimités</li>
-              <li>✓ Suivi temps réel</li>
-              <li>✓ API complète</li>
-              <li>✓ Support prioritaire</li>
-              <li>✓ Analyses avancées</li>
-            </ul>
-            <a href="login.html" class="btn btn-primary">Essayer 14 jours</a>
-          </div>
+          <div class="features-grid">
+            <div class="feature-glass-card">
+              <div class="feature-icon-wrapper">📍</div>
+              <h3>Géolocalisation Continue</h3>
+              <p>Positionnement GPS haute précision calculé en continu. Visualisez la latitude et la longitude exactes à chaque seconde du trajet.</p>
+            </div>
 
-          <div class="pricing-card">
-            <div class="pricing-name">Enterprise</div>
-            <div class="pricing-price">Sur devis</div>
-            <div class="pricing-desc">Pour les grandes entreprises</div>
-            <ul class="pricing-features">
-              <li>✓ Tout Pro inclus</li>
-              <li>✓ SLA garanti</li>
-              <li>✓ Intégration sur mesure</li>
-              <li>✓ Account manager dédié</li>
-            </ul>
-            <a href="#" class="btn btn-secondary">Nous contacter</a>
+            <div class="feature-glass-card">
+              <div class="feature-icon-wrapper">⏱️</div>
+              <h3>Calcul d'ETA Intelligent</h3>
+              <p>Algorithme prédictif qui ajuste l'heure estimée d'arrivée selon la vitesse effective, la distance restante et les étapes franchies.</p>
+            </div>
+
+            <div class="feature-glass-card">
+              <div class="feature-icon-wrapper">🗺️</div>
+              <h3>Cartographie Interactive</h3>
+              <p>Rendu cartographique fluide avec tracé vectoriel de l'itinéraire, jalons de parcours et indication de l'adresse actuelle inversée.</p>
+            </div>
+
+            <div class="feature-glass-card">
+              <div class="feature-icon-wrapper">🔔</div>
+              <h3>Journal d'Événements</h3>
+              <p>Historique horodaté et immuable de chaque événement d'expédition : prise en charge, départs de centre de tri, arrêts techniques et livraisons.</p>
+            </div>
+
+            <div class="feature-glass-card">
+              <div class="feature-icon-wrapper">🛡️</div>
+              <h3>Contrôle Centralisé Admin</h3>
+              <p>Console de commande pour lancer, suspendre ou accélérer les simulations de transport en temps réel en toute simplicité.</p>
+            </div>
+
+            <div class="feature-glass-card">
+              <div class="feature-icon-wrapper">📱</div>
+              <h3>Portail Client Sans Friction</h3>
+              <p>Vos destinataires consultent instantanément l'état de leur colis avec leur numéro de suivi, sans inscription ni barrière technique.</p>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="cta-section">
-      <div class="container">
-        <h2>Prêt à suivre vos colis différemment ?</h2>
-        <p>Rejoignez des milliers d'entreprises qui font confiance à TrackPro</p>
-        <a href="login.html" class="btn btn-primary btn-lg">Créer mon compte gratuit</a>
-      </div>
-    </section>
+      <!-- SECTION COMMENT ÇA MARCHE -->
+      <section id="how" class="steps-section">
+        <div class="container">
+          <div class="section-head">
+            <span class="section-tag-pill">Workflow Unifié</span>
+            <h2 class="section-h2">De l'expédition à la livraison</h2>
+            <p class="section-subtext">Un processus rationalisé garantissant visibilité totale et rigueur absolue.</p>
+          </div>
 
+          <div class="steps-container">
+            <div class="step-card">
+              <div class="step-number-tag">01</div>
+              <h3>Création par l'Administrateur</h3>
+              <p>L'administrateur TrackPro saisit le destinataire, l'itinéraire de départ et d'arrivée et génère un numéro de référence unique.</p>
+            </div>
+
+            <div class="step-card">
+              <div class="step-number-tag">02</div>
+              <h3>Télémétrie en Mouvement</h3>
+              <p>Le colis avance sur sa route avec vitesse de déplacement, calcul de progression en pourcentage et rafraîchissement cartographique continu.</p>
+            </div>
+
+            <div class="step-card">
+              <div class="step-number-tag">03</div>
+              <h3>Validation & Livraison</h3>
+              <p>Dès l'atteinte des 100% de trajectoire, le statut passe à Livré avec enregistrement de l'heure exacte et clôture du dossier.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION SÉCURITÉ & AUDIT -->
+      <section id="security" class="security-section">
+        <div class="container">
+          <div class="security-box">
+            <div class="security-content">
+              <span class="section-tag-pill">Conformité & Intégrité</span>
+              <h2>Sécurité absolue pour vos opérations logistiques</h2>
+              <p>
+                TrackPro garantit une étanchéité stricte : seul l'administrateur certifié détient le pouvoir de gestion des expéditions, tandis que le public bénéficie d'un accès sécurisé en lecture seule.
+              </p>
+              <ul class="security-list">
+                <li><span class="check-icon">✓</span> Chiffrement des transferts via protocole HTTPS / TLS 1.3</li>
+                <li><span class="check-icon">✓</span> Authentification administrateur cryptée par hachage renforcé</li>
+                <li><span class="check-icon">✓</span> Validation stricte des coordonnées géographiques et des adresses</li>
+                <li><span class="check-icon">✓</span> Base de données transactionnelle avec persistance continue</li>
+              </ul>
+            </div>
+
+            <div class="security-badge-card">
+              <div class="security-shield-icon">🛡️</div>
+              <h4>Protection Active</h4>
+              <p>Accès restreint à l'administration TrackPro. Audit logistique sécurisé 24h/24.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BANNIÈRE ACCÈS PRO -->
+      <section class="cta-banner">
+        <div class="container">
+          <h2>Prêt à superviser vos expéditions ?</h2>
+          <p>Consultez l'espace public de suivi ou accédez à la console de gestion TrackPro.</p>
+          <div class="cta-buttons">
+            <a href="client.html" class="btn-cta-primary">Suivre un colis maintenant</a>
+            <a href="login.html" class="btn-cta-secondary">Espace Administrateur</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER OFFICIEL -->
     <footer class="footer">
-      <div class="container footer-grid">
-        <div class="footer-col">
-          <div class="footer-logo">
-            <span class="logo-icon">◉</span>
-            <span class="logo-text">TrackPro</span>
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <a href="index.html" class="logo">
+              <span class="logo-badge">◉</span>
+              <span class="logo-text">Track<span>Pro</span></span>
+            </a>
+            <p class="footer-desc">
+              Plateforme professionnelle de traçabilité d'expéditions, monitoring GPS et logistique de précision.
+            </p>
           </div>
-          <p class="footer-desc">Le suivi de colis nouvelle génération.</p>
+
+          <div class="footer-col">
+            <h4>Navigation</h4>
+            <a href="client.html">Suivi de colis</a>
+            <a href="login.html">Connexion Administrateur</a>
+            <a href="#features">Fonctionnalités</a>
+            <a href="#how">Comment ça marche</a>
+          </div>
+
+          <div class="footer-col">
+            <h4>Supervision</h4>
+            <a href="health">Statut du serveur (/health)</a>
+            <a href="#security">Conformité & Données</a>
+            <a href="login.html">Support Opérationnel</a>
+          </div>
         </div>
-        <div class="footer-col">
-          <h4>Produit</h4>
-          <a href="#features">Fonctionnalités</a>
-          <a href="#pricing">Tarifs</a>
-          <a href="#">API</a>
-        </div>
-        <div class="footer-col">
-          <h4>Entreprise</h4>
-          <a href="#">À propos</a>
-          <a href="#">Blog</a>
-          <a href="#">Carrières</a>
+
+        <div class="footer-bottom">
+          <div>© 2026 TrackPro Logistics. Tous droits réservés.</div>
+          <div class="system-status-indicator">
+            <span class="status-dot-green"></span>
+            <span>Systèmes opérationnels (100%)</span>
+          </div>
         </div>
       </div>
     </footer>
+
+    <!-- SCRIPT DE GESTION DU CHAMP DE RECHERCHE RAPIDE -->
+    <script>
+      document.getElementById('heroTrackForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const input = document.getElementById('heroTrackingInput');
+        const code = input ? input.value.trim() : '';
+        if (code) {
+          window.location.href = 'client.html?tracking=' + encodeURIComponent(code);
+        }
+      });
+    </script>
   </body>
 </html>

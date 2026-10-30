@@ -32,29 +32,41 @@ async function requestJson(app, method, path, body, token) {
   }
 }
 
-test('registers an admin user and returns JWT', async () => {
+test('rejects public registration since accounts cannot be created', async () => {
   const app = createApp({ useMemoryDb: true });
 
   const result = await requestJson(app, 'POST', '/api/auth/register', {
-    name: 'Admin Test',
-    email: 'admin@test.com',
+    name: 'Tentative User',
+    email: 'newuser@test.com',
     password: 'Password123!',
     role: 'admin',
   });
 
-  assert.equal(result.status, 201);
+  assert.equal(result.status, 403);
+});
+
+test('logs in single admin user with Mounir2007 and returns JWT', async () => {
+  const app = createApp({ useMemoryDb: true });
+  await app.locals.dbReady;
+
+  const result = await requestJson(app, 'POST', '/api/auth/login', {
+    email: 'admin@trackpro.com',
+    password: 'Mounir2007',
+  });
+
+  assert.equal(result.status, 200);
   assert.ok(result.data.token);
+  assert.equal(result.data.user.email, 'admin@trackpro.com');
   assert.equal(result.data.user.role, 'admin');
 });
 
 test('creates a parcel and exposes it to the public tracking API', async () => {
   const app = createApp({ useMemoryDb: true });
+  await app.locals.dbReady;
 
-  const adminAuth = await requestJson(app, 'POST', '/api/auth/register', {
-    name: 'Admin Test',
-    email: 'admin2@test.com',
-    password: 'Password123!',
-    role: 'admin',
+  const adminAuth = await requestJson(app, 'POST', '/api/auth/login', {
+    email: 'admin@trackpro.com',
+    password: 'Mounir2007',
   });
 
   const parcelCreate = await requestJson(
@@ -94,12 +106,11 @@ test('creates a parcel and exposes it to the public tracking API', async () => {
 
 test('starts a parcel from 0% and updates its live status through the admin control route', async () => {
   const app = createApp({ useMemoryDb: true });
+  await app.locals.dbReady;
 
-  const auth = await requestJson(app, 'POST', '/api/auth/register', {
-    name: 'Route Admin',
-    email: 'route-admin@test.com',
-    password: 'Password123!',
-    role: 'admin',
+  const auth = await requestJson(app, 'POST', '/api/auth/login', {
+    email: 'admin@trackpro.com',
+    password: 'Mounir2007',
   });
 
   const parcelCreate = await requestJson(
@@ -154,14 +165,19 @@ test('starts a parcel from 0% and updates its live status through the admin cont
 test('rejects weak credentials and malformed payloads', async () => {
   const app = createApp({ useMemoryDb: true });
 
-  const weakPassword = await requestJson(app, 'POST', '/api/auth/register', {
-    name: 'Weak User',
-    email: 'weak@example.com',
-    password: '123',
-    role: 'admin',
+  const invalidLogin = await requestJson(app, 'POST', '/api/auth/login', {
+    email: 'admin@trackpro.com',
+    password: 'WrongPassword',
   });
 
-  assert.equal(weakPassword.status, 400);
+  assert.equal(invalidLogin.status, 401);
+
+  const unauthorizedUser = await requestJson(app, 'POST', '/api/auth/login', {
+    email: 'hacker@trackpro.com',
+    password: 'Mounir2007',
+  });
+
+  assert.equal(unauthorizedUser.status, 401);
 
   const malformedParcel = await requestJson(
     app,
@@ -195,17 +211,14 @@ test('falls back to SQLite when DATABASE_URL points to an unreachable Postgres h
     const app = createApp();
     await app.locals.dbReady;
 
-    const uniqueEmail = `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
-    const result = await requestJson(app, 'POST', '/api/auth/register', {
-      name: 'Fallback User',
-      email: uniqueEmail,
-      password: 'Password123!',
-      role: 'admin',
+    const loginRes = await requestJson(app, 'POST', '/api/auth/login', {
+      email: 'admin@trackpro.com',
+      password: 'Mounir2007',
     });
 
-    assert.equal(result.status, 201);
-    assert.ok(result.data.token);
-    assert.equal(result.data.user.email, uniqueEmail);
+    assert.equal(loginRes.status, 200);
+    assert.ok(loginRes.data.token);
+    assert.equal(loginRes.data.user.email, 'admin@trackpro.com');
   } finally {
     if (originalDatabaseUrl === undefined) {
       delete process.env.DATABASE_URL;

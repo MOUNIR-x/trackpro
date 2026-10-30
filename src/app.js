@@ -285,40 +285,9 @@ function createApp({ useMemoryDb = false } = {}) {
     res.json({ ok: true, service: 'tracking-app' });
   });
 
-  app.post('/api/auth/register', async (req, res) => {
-    const { name, email, password, role, company } = req.body || {};
-    const safeName = sanitizeText(name);
-    const safeEmail = sanitizeText(email).toLowerCase();
-    const safePassword = typeof password === 'string' ? password : '';
-
-    if (!safeName || !isValidEmail(safeEmail) || !isStrongPassword(safePassword)) {
-      return res.status(400).json({ message: 'Nom, email et mot de passe valides sont requis.' });
-    }
-
-    const existingUser = await findUserByEmail(db, safeEmail);
-    if (existingUser) {
-      return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
-    }
-
-    const nextRole = role === 'user' ? 'user' : 'admin';
-    const user = await createUser(db, {
-      name: safeName,
-      email: safeEmail,
-      passwordHash: hashPassword(safePassword),
-      role: nextRole,
-      company: sanitizeText(company) || 'TrackPro',
-    });
-
-    const token = signToken(user);
-    return res.status(201).json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        company: user.company || 'TrackPro',
-      },
+  app.post('/api/auth/register', (req, res) => {
+    return res.status(403).json({
+      message: 'La création de compte est désactivée. Veuillez vous connecter avec le compte administrateur TrackPro.',
     });
   });
 
@@ -331,9 +300,30 @@ function createApp({ useMemoryDb = false } = {}) {
       return res.status(400).json({ message: 'Email et mot de passe sont requis.' });
     }
 
-    const user = await findUserByEmail(db, safeEmail);
-    if (!user || !comparePassword(safePassword, user.passwordHash)) {
+    const ADMIN_EMAIL = 'admin@trackpro.com';
+    const ADMIN_PASS = 'Mounir2007';
+
+    // Seul le compte administrateur unique est autorisé
+    if (safeEmail !== ADMIN_EMAIL) {
       return res.status(401).json({ message: 'Identifiants invalides.' });
+    }
+
+    let user = await findUserByEmail(db, safeEmail);
+    const isDirectMatch = safePassword === ADMIN_PASS;
+    const isHashMatch = user && comparePassword(safePassword, user.passwordHash);
+
+    if (!isDirectMatch && !isHashMatch) {
+      return res.status(401).json({ message: 'Identifiants invalides.' });
+    }
+
+    if (!user) {
+      user = {
+        id: 1,
+        name: 'Admin TrackPro',
+        email: ADMIN_EMAIL,
+        role: 'admin',
+        company: 'TrackPro',
+      };
     }
 
     const token = signToken(user);
@@ -342,9 +332,9 @@ function createApp({ useMemoryDb = false } = {}) {
       token,
       user: {
         id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        name: user.name || 'Admin TrackPro',
+        email: ADMIN_EMAIL,
+        role: 'admin',
         company: user.company || 'TrackPro',
       },
     });

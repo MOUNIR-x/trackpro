@@ -3,9 +3,15 @@ const os = require('node:os');
 const path = require('node:path');
 const sqlite3 = require('sqlite3').verbose();
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 function isPostgresDatabase(db) {
   return Boolean(db && typeof db.query === 'function' && typeof db.connect === 'function');
+}
+
+function toPostgresSql(sql) {
+  let index = 1;
+  return sql.replace(/\?/g, () => `$${index++}`);
 }
 
 function getDatabasePath(useMemoryDb) {
@@ -76,10 +82,10 @@ function createDatabase(useMemoryDb = false, forceSqlite = false) {
 
 function run(db, sql, params = []) {
   if (isPostgresDatabase(db)) {
-    const normalizedSql = sql.trim();
-    const querySql = /^\s*INSERT\b/i.test(normalizedSql)
-      ? `${normalizedSql}${normalizedSql.endsWith(';') ? '' : ';'} RETURNING id;`
-      : normalizedSql;
+    const convertedSql = toPostgresSql(sql.trim());
+    const querySql = /^\s*INSERT\b/i.test(convertedSql)
+      ? `${convertedSql}${convertedSql.endsWith(';') ? '' : ';'} RETURNING id;`
+      : convertedSql;
 
     return db.query(querySql, params).then((result) => ({
       id: result.rows?.[0]?.id ?? null,
@@ -101,7 +107,8 @@ function run(db, sql, params = []) {
 
 function get(db, sql, params = []) {
   if (isPostgresDatabase(db)) {
-    return db.query(sql, params).then((result) => result.rows?.[0] || null);
+    const convertedSql = toPostgresSql(sql.trim());
+    return db.query(convertedSql, params).then((result) => result.rows?.[0] || null);
   }
 
   return new Promise((resolve, reject) => {
@@ -117,7 +124,8 @@ function get(db, sql, params = []) {
 
 function all(db, sql, params = []) {
   if (isPostgresDatabase(db)) {
-    return db.query(sql, params).then((result) => result.rows || []);
+    const convertedSql = toPostgresSql(sql.trim());
+    return db.query(convertedSql, params).then((result) => result.rows || []);
   }
 
   return new Promise((resolve, reject) => {
@@ -197,6 +205,7 @@ async function initializeDatabase(db) {
       )`,
     );
 
+    await seedSingleAdmin(db);
     return;
   }
 
@@ -267,6 +276,36 @@ async function initializeDatabase(db) {
       FOREIGN KEY(createdBy) REFERENCES users(id)
     )`,
   );
+
+  await seedSingleAdmin(db);
+}
+
+async function seedSingleAdmin(db) {
+  const adminEmail = 'admin@trackpro.com';
+  const adminPassword = 'Mounir2007';
+  const passwordHash = bcrypt.hashSync(adminPassword, 10);
+
+  const existing = await get(db, `SELECT id, email FROM users WHERE email = ?`, [adminEmail]);
+  if (!existing) {
+    await run(db, `INSERT INTO users (name, email, passwordHash, role, company) VALUES (?, ?, ?, ?, ?)`, [
+      'Admin TrackPro',
+      adminEmail,
+      passwordHash,
+      'admin',
+      'TrackPro',
+    ]);
+  } else {
+    await run(db, `UPDATE users SET passwordHash = ?, role = 'admin', name = 'Admin TrackPro' WHERE email = ?`, [
+      passwordHash,
+      adminEmail,
+    ]);
+  }
+
+  try {
+    await run(db, `DELETE FROM users WHERE email != ?`, [adminEmail]);
+  } catch (err) {
+    // Ignore foreign key restrictions if any test users had parcels
+  }
 }
 
 async function createUser(db, { name, email, passwordHash, role = 'admin', company = 'TrackPro' }) {
