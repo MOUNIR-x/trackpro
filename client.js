@@ -437,12 +437,12 @@ async function trackColis() {
 
   await loadTrackingParcel(value, false);
 
-  // Polling toutes les 2s directement depuis Supabase
+  // Polling toutes les 1s pour synchronisation temps réel exacte avec l'admin
   trackingRefreshTimer = setInterval(() => {
     if (activeTrackingNumber) {
       loadTrackingParcel(activeTrackingNumber, true).catch(() => {});
     }
-  }, 2000);
+  }, 1000);
 }
 
 window.addEventListener('load', initializeClientPage);

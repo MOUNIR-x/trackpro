@@ -8,22 +8,24 @@
     <link rel="stylesheet" href="landing.css" />
   </head>
   <body>
-    <!-- BARRE DE NAVIGATION SUPÉRIEURE -->
+    <!-- BARRE DE NAVIGATION SUPÉRIEURE (BLANC ET NOIR) -->
     <header class="navbar">
       <div class="nav-container">
         <a href="index.html" class="logo">
           <span class="logo-badge">◉</span>
           <span class="logo-text">Track<span>Pro</span></span>
         </a>
+
         <nav class="nav-links">
           <a href="#features">Technologie</a>
           <a href="#how">Fonctionnement</a>
           <a href="#security">Sécurité</a>
-          <a href="client.html" class="nav-link-client">
-            <span>📡</span> Suivre un colis
-          </a>
-          <a href="login.html" class="btn-nav">Connexion Admin</a>
         </nav>
+
+        <div class="nav-actions">
+          <a href="client.html" class="btn-nav-client">Suivre un colis</a>
+          <a href="login.html" class="btn-nav-admin">Connexion Admin</a>
+        </div>
       </div>
     </header>
 
@@ -31,7 +33,7 @@
     <main>
       <section class="hero-wrapper">
         <div class="hero-media-container">
-          <!-- Vidéo de logistique globale haute performance en boucle -->
+          <!-- Vidéo de fret traitée en noir et blanc léger en arrière-plan -->
           <video class="hero-video-bg" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=80">
             <source src="https://assets.mixkit.co/videos/preview/mixkit-top-view-of-a-cargo-ship-in-the-sea-43615-large.mp4" type="video/mp4" />
           </video>
@@ -43,12 +45,11 @@
           <div class="hero-content">
             <div class="hero-badge-pill">
               <span class="badge-pulse"></span>
-              <span>TÉLÉMÉTRIE SATELLITE ACTIVE • VERSION 2.6</span>
+              <span>Télémétrie satellite active • v2.6</span>
             </div>
 
             <h1 class="hero-title">
-              Le suivi de fret haute précision <br />
-              <span class="gradient-text">au mètre près.</span>
+              Le suivi de fret haute précision au mètre près.
             </h1>
 
             <p class="hero-subtitle">
@@ -58,7 +59,6 @@
 
             <!-- FORMULAIRE DE SUIVI INSTANTANÉ DIRECT -->
             <form id="heroTrackForm" class="hero-track-box">
-              <span class="track-icon">🔍</span>
               <input
                 type="text"
                 id="heroTrackingInput"
@@ -74,18 +74,18 @@
             </form>
 
             <div class="hero-quick-demo">
-              <span>Exemples en direct :</span>
+              <span>Exemples :</span>
               <a href="client.html?tracking=COL-2026-001" class="demo-chip">COL-2026-001</a>
               <a href="client.html?tracking=COL-2026-002" class="demo-chip">COL-2026-002</a>
               <a href="client.html?tracking=COL-2026-003" class="demo-chip">COL-2026-003</a>
             </div>
 
             <div class="hero-actions-row">
-              <a href="login.html" class="btn-hero-admin">
-                <span>🔒</span> Accès Espace Administrateur
-              </a>
               <a href="client.html" class="btn-hero-admin">
-                <span>🌍</span> Portail Public de Suivi
+                Portail Public de Suivi
+              </a>
+              <a href="login.html" class="btn-hero-admin">
+                Espace Administrateur
               </a>
             </div>
 
@@ -97,16 +97,16 @@
               </div>
               <div class="stat-item">
                 <div class="stat-value">&lt; 250ms</div>
-                <div class="stat-label">Latence Télémétrique</div>
+                <div class="stat-label">Latence Télémétrie</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value">180+</div>
-                <div class="stat-label">Pays Connectés</div>
+                <div class="stat-label">Pays Couverts</div>
               </div>
             </div>
           </div>
 
-          <!-- CÔTÉ DROIT : COCKPIT TÉLÉMÉTRIQUE 3D GLASSMORPHISM -->
+          <!-- CÔTÉ DROIT : COCKPIT TÉLÉMÉTRIQUE DASHBOARD -->
           <div class="hero-cockpit">
             <div class="cockpit-card">
               <div class="cockpit-topbar">
@@ -115,29 +115,28 @@
                 </div>
                 <div class="cockpit-live-tag">
                   <span class="cockpit-live-dot"></span>
-                  RADAR SATELLITE EN DIRECT
+                  Radar en direct
                 </div>
               </div>
 
-              <!-- CARTE RADAR ANIMÉE -->
+              <!-- CARTE RADAR ANIMÉE ÉPURÉE -->
               <div class="cockpit-map-view">
                 <div class="radar-ring r1"></div>
                 <div class="radar-ring r2"></div>
                 <div class="radar-ring r3"></div>
-                <div class="radar-sweep"></div>
 
                 <!-- LIGNE DE TRAJET SVG -->
                 <svg class="cockpit-route-svg" viewBox="0 0 300 200">
                   <path
                     d="M 30,150 Q 120,40 240,80"
                     fill="none"
-                    stroke="rgba(6, 182, 212, 0.5)"
-                    stroke-width="3"
+                    stroke="#0a0a0a"
+                    stroke-width="2.5"
                     stroke-dasharray="6,4"
                   />
                   <!-- Points départ et arrivée -->
-                  <circle cx="30" cy="150" r="5" fill="#10b981" />
-                  <circle cx="240" cy="80" r="5" fill="#f43f5e" />
+                  <circle cx="30" cy="150" r="5" fill="#0a0a0a" />
+                  <circle cx="240" cy="80" r="5" fill="#737373" />
                 </svg>
 
                 <!-- CIBLE VÉHICULE EN MOUVEMENT -->
@@ -157,22 +156,23 @@
                 <div class="cockpit-telemetry-grid">
                   <div class="telemetry-box">
                     <div class="telemetry-title">Vitesse GPS</div>
-                    <div class="telemetry-data">82.4 km/h</div>
+                    <div class="telemetry-data">82 km/h</div>
                   </div>
                   <div class="telemetry-box">
-                    <div class="telemetry-title">Cap & Direction</div>
+                    <div class="telemetry-title">Cap</div>
                     <div class="telemetry-data">Sud-Est (142°)</div>
                   </div>
                   <div class="telemetry-box">
-                    <div class="telemetry-title">Arrivée estimée</div>
+                    <div class="telemetry-title">ETA</div>
                     <div class="telemetry-data">18:45</div>
                   </div>
                 </div>
 
+                <!-- PROGRESSION IDENTIQUE À L'ADMIN -->
                 <div class="cockpit-progress-container">
                   <div class="progress-labels">
-                    <span>Progression du parcours</span>
-                    <strong style="color: var(--accent-cyan-light)">74%</strong>
+                    <span>Progression</span>
+                    <strong>74%</strong>
                   </div>
                   <div class="progress-track-bg">
                     <div class="progress-fill-bar"></div>
@@ -189,10 +189,10 @@
         <div class="container network-grid">
           <div class="network-tagline">Réseaux & Partenaires Internationaux</div>
           <div class="network-items">
-            <span class="network-item">✈️ SkyCargo Alliance</span>
-            <span class="network-item">🚢 Global Maritime Freight</span>
-            <span class="network-item">🚆 TransEurope Express</span>
-            <span class="network-item">📦 InterContinental Relay</span>
+            <span class="network-item">SkyCargo Alliance</span>
+            <span class="network-item">Global Maritime Freight</span>
+            <span class="network-item">TransEurope Express</span>
+            <span class="network-item">InterContinental Relay</span>
           </div>
         </div>
       </section>
@@ -204,7 +204,7 @@
             <span class="section-tag-pill">Haute Technologie</span>
             <h2 class="section-h2">Une infrastructure conçue pour la certitude</h2>
             <p class="section-subtext">
-              TrackPro réunit télémétrie satellitaire, cartographie dynamique OpenStreetMap et alertes temps réel sur une plateforme robuste et sécurisée.
+              TrackPro réunit télémétrie satellitaire, cartographie dynamique et alertes temps réel sur une plateforme robuste et sécurisée.
             </p>
           </div>
 
@@ -319,7 +319,7 @@
       </section>
     </main>
 
-    <!-- FOOTER OFFICIEL -->
+    <!-- FOOTER OFFICIEL (BLANC ET NOIR) -->
     <footer class="footer">
       <div class="container">
         <div class="footer-grid">

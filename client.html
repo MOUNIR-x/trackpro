@@ -225,14 +225,16 @@
 
               <h2>Colis <span id="resultTrackingNumber">-</span></h2>
 
-              <div class="summary-box" style="margin-bottom: 16px; padding: 16px; background: linear-gradient(180deg, #fafafa, #f3f4f6);">
-                <div class="label">Progression du colis</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin: 8px 0 12px;">
-                  <div class="value" id="resultProgressText">0%</div>
-                  <div class="value" id="resultEta">ETA —</div>
+              <div class="summary-box" style="margin-bottom: 16px; padding: 14px 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 600; color: #525252;">Progression</span>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="resultEta" style="font-size: 12px; color: #737373;">ETA —</span>
+                    <strong id="resultProgressText" style="font-size: 15px; font-weight: 700; color: #0a0a0a;">0%</strong>
+                  </div>
                 </div>
-                <div style="height: 10px; background: #ececec; border-radius: 999px; overflow: hidden;">
-                  <div id="resultProgressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #101828, #28c76f); border-radius: inherit;"></div>
+                <div class="progress-bar" style="margin-top: 6px; height: 10px; background: #e5e5e5; border-radius: 999px; overflow: hidden;">
+                  <div id="resultProgressBar" class="progress-fill" style="height: 100%; width: 0%; background: #0a0a0a; border-radius: 999px; transition: width 0.3s ease;"></div>
                 </div>
               </div>
 
