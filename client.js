@@ -11,7 +11,7 @@ function normalizePublicParcel(row) {
   const rawRoute = row.routegeojson || row.routeGeoJson || row.route;
   let parsedRoute = null;
   if (typeof rawRoute === 'string') {
-    try { parsedRoute = JSON.parse(rawRoute); } catch {}
+    try { parsedRoute = JSON.parse(rawRoute); } catch { }
   } else if (rawRoute && typeof rawRoute === 'object') {
     parsedRoute = rawRoute;
   }
@@ -223,7 +223,35 @@ function displayTrackingResult(parcel) {
   setText('resultDistanceRemaining', distanceRemaining > 0 ? `${distanceRemaining.toFixed(1)} km` : (parcel.status === 'delivered' ? '0 km' : '—'));
   setText('resultSpeed', `${speed} km/h`);
   setText('resultProgressText', `${Math.round(progress)}%`);
-  setText('resultEta', parcel.status === 'delivered' ? 'Livré' : (etaMinutes > 0 ? `ETA ${formatDuration(etaMinutes)}` : 'ETA —'));
+  // Real-time ETA countdown based on speed and remaining distance
+  if (window.etaCountdownInterval) {
+    clearInterval(window.etaCountdownInterval);
+    window.etaCountdownInterval = null;
+  }
+  if (parcel.status === 'delivered') {
+    setText('resultEta', 'Livré');
+  } else if (etaMinutes > 0) {
+    const totalSeconds = Math.ceil((distanceRemaining / Math.max(1, speed)) * 3600);
+    let remaining = totalSeconds;
+    const updateEta = () => {
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      setText('resultEta', `ETA ${mins}m ${secs}s`);
+    };
+    updateEta();
+    window.etaCountdownInterval = setInterval(() => {
+      if (remaining <= 0) {
+        clearInterval(window.etaCountdownInterval);
+        window.etaCountdownInterval = null;
+        setText('resultEta', 'ETA —');
+        return;
+      }
+      remaining--;
+      updateEta();
+    }, 1000);
+  } else {
+    setText('resultEta', 'ETA —');
+  }
   setText('resultLastEvent', lastEvent ? `${lastEvent.type || lastEvent.status || 'Mise à jour'} • ${lastEvent.note || 'Aucune note'}` : 'Colis en cours d\'acheminement');
   setText('resultStatusReason', statusReason);
 
@@ -440,7 +468,7 @@ async function trackColis() {
   // Polling toutes les 1s pour synchronisation temps réel exacte avec l'admin
   trackingRefreshTimer = setInterval(() => {
     if (activeTrackingNumber) {
-      loadTrackingParcel(activeTrackingNumber, true).catch(() => {});
+      loadTrackingParcel(activeTrackingNumber, true).catch(() => { });
     }
   }, 1000);
 }
