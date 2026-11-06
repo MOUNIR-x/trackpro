@@ -375,15 +375,32 @@ function initAdminPage() {
   bindNav();
   initMap();
   loadDashboard();
-  // Rafraîchissement léger des stats et liste (pas la carte) toutes les 5s
+  // Rafraîchissement partiel toutes les 10s (stats + liste, PAS la carte ni les markers)
   if (!window.__trackproLiveRefresh) {
     window.__trackproLiveRefresh = setInterval(() => {
-      // Ne pas recharger si une simulation est en cours (le tick s'en charge)
+      // Ne pas recharger si une simulation RAF est en cours
       if (!state.simulationTimer) {
-        loadDashboard().catch(() => {});
+        silentRefreshStats().catch(() => {});
       }
-    }, 5000);
+    }, 10000);
   }
+}
+
+// Refresh silencieux : stats + liste de colis sans toucher la carte
+async function silentRefreshStats() {
+  try {
+    const [statsData, parcelsData] = await Promise.all([
+      apiFetch('/api/admin/stats'),
+      apiFetch('/api/admin/parcels'),
+    ]);
+    state.parcels = parcelsData.parcels || [];
+    renderStats(statsData.stats || {});
+    renderRecentColis();
+    renderColisList();
+    renderActivity();
+    renderSelectOptions();
+    // Ne pas appeler renderMapMarkers() ici → évite le rechargement visible de la carte
+  } catch { /* silencieux */ }
 }
 
 function renderUserProfile() {
@@ -878,9 +895,12 @@ function renderMapMarkers(preserveView = false) {
 
 function stopSimulation() {
   if (state.simulationTimer) {
-    clearInterval(state.simulationTimer);
+    if (typeof state.simulationTimer === 'number') clearInterval(state.simulationTimer);
     state.simulationTimer = null;
   }
+  if (simRAF) cancelAnimationFrame(simRAF);
+  simRAF = null;
+  lastTimestamp = null;
 }
 
 // Met à jour directement le marqueur Leaflet et les infos sans refetch
@@ -916,31 +936,34 @@ function applyProgressToMap(parcel, nextProgress, nextPoint) {
   if (updatedParcel) updateTrackingInfo(updatedParcel);
 }
 
-async function advanceSimulationTick() {
+// --- RAF simulation helpers (used by startSimulation below) ---
+let simRAF = null;
+let lastTimestamp = null;
+
+function simulationStep(ts) {
+  if (!state.simulationTimer) return;
+  if (lastTimestamp === null) lastTimestamp = ts;
+  const deltaSec = (ts - lastTimestamp) / 1000;
+  lastTimestamp = ts;
+
   const parcel = getSelectedParcel();
   if (!parcel) return;
-
-  if (parcel.status !== 'in_transit' && !parcel.isRunning) {
-    stopSimulation();
-    return;
-  }
+  if (parcel.status !== 'in_transit' && !parcel.isRunning) { stopSimulation(); return; }
 
   const currentProgress = clampProgress(parcel.progress);
   if (currentProgress >= 100) {
     stopSimulation();
-    try {
-      await apiFetch(`/api/admin/parcels/${parcel.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'delivered', progress: 100, isRunning: 0 }),
-      });
-    } catch { /* ignore */ }
-    await loadDashboard();
+    apiFetch(`/api/admin/parcels/${parcel.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'delivered', progress: 100, isRunning: 0 }),
+    }).catch(() => {});
+    loadDashboard();
     return;
   }
 
   const speed = Math.max(10, Math.min(1000, Number(parcel.simulationSpeed) || 90));
   const routeDistanceKm = Math.max(0.1, getRouteDistanceKm(parcel) || Number(parcel.distanceTotal) || 1);
-  const distanceMovedKm = (speed / 3600) * 1;
+  const distanceMovedKm = (speed / 3600) * deltaSec;
   const increment = (distanceMovedKm / routeDistanceKm) * 100;
   const nextProgress = clampProgress(currentProgress + increment);
   const nextPoint = routePointAtProgress(parcel, nextProgress);
@@ -957,8 +980,11 @@ async function advanceSimulationTick() {
       isRunning: 1,
       simulationSpeed: speed,
     }),
-  }).catch(() => { /* ignore */ });
+  }).catch(() => {});
+
+  simRAF = requestAnimationFrame(simulationStep);
 }
+
 
 function onManualProgressInput(value) {
   const parcel = getSelectedParcel();
@@ -1379,89 +1405,101 @@ function startSimulation() {
   renderMapMarkers(true);
   updateTrackingInfo(selectedParcel);
 
-  const speedVal = Number(document.getElementById('simSpeed')?.value || selectedParcel.simulationSpeed || 90);
-
   updateParcelControl('start').finally(() => {
-    state.simulationTimer = setInterval(() => {
-      advanceSimulationTick().catch(() => {});
-    }, 1000); // 1 tick = 1 seconde
+    state.simulationTimer = true;
+    lastTimestamp = null;
+    simRAF = requestAnimationFrame(simulationStep);
   });
 }
 
-// Bouton Pause : arrêt immédiat du colis sans bloquer
-async function pauseSimulation() {
+// Bouton Pause : demande le motif avant de mettre en pause
+function pauseSimulation() {
   const parcel = getSelectedParcel();
   if (!parcel) {
     alert('Sélectionnez un colis.');
     return;
   }
 
-  // 1. Arrêter immédiatement le timer
-  stopSimulation();
+  showReasonModal(
+    'Mettre en pause la livraison',
+    `Indiquez le motif de l'arrêt temporaire du colis ${parcel.trackingNumber} (contrôle douanier, pause chauffeur, trafic, etc.). Ce motif sera visible par le client.`,
+    async (reason) => {
+      // 1. Arrêter immédiatement la simulation
+      stopSimulation();
 
-  // 2. Mettre à jour en mémoire
-  parcel.status = 'paused';
-  parcel.isRunning = false;
-  const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
-  if (idx !== -1) {
-    state.parcels[idx] = { ...state.parcels[idx], status: 'paused', isRunning: false };
-  }
+      // 2. Mettre à jour en mémoire
+      parcel.status = 'paused';
+      parcel.isRunning = false;
+      const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
+      if (idx !== -1) {
+        state.parcels[idx] = { ...state.parcels[idx], status: 'paused', isRunning: false };
+      }
 
-  // 3. Rafraîchir l'interface sans faire sauter la carte
-  renderMapMarkers(true);
-  updateTrackingInfo(parcel);
+      // 3. Rafraîchir l'interface sans faire sauter la carte
+      renderMapMarkers(true);
+      updateTrackingInfo(parcel);
 
-  // 4. Mettre à jour Supabase
-  try {
-    await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'pause',
-        note: 'Colis mis en pause',
-        speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
-      }),
-    });
-  } catch (err) {
-    console.error('Erreur pause:', err);
-  }
+      // 4. Mettre à jour Supabase / API avec motif et destination
+      try {
+        await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'pause',
+            reason: reason || 'Pause opérationnelle',
+            note: reason ? `Pause : ${reason}` : 'Colis mis en pause',
+            speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
+          }),
+        });
+      } catch (err) {
+        console.error('Erreur pause:', err);
+      }
+    }
+  );
 }
 
-// Bouton Arrêter : arrêt immédiat du colis
-async function stopParcel() {
+// Bouton Arrêter : demande le motif avant d'arrêter
+function stopParcel() {
   const parcel = getSelectedParcel();
   if (!parcel) {
     alert('Sélectionnez un colis.');
     return;
   }
 
-  // 1. Arrêter immédiatement le timer
-  stopSimulation();
+  showReasonModal(
+    'Arrêter la livraison',
+    `Indiquez le motif de l'arrêt du colis ${parcel.trackingNumber} (panne, incident, fin de service, etc.). Ce motif sera visible par le client.`,
+    async (reason) => {
+      // 1. Arrêter immédiatement le timer
+      stopSimulation();
 
-  // 2. Mettre à jour en mémoire
-  parcel.status = 'stopped';
-  parcel.isRunning = false;
-  const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
-  if (idx !== -1) {
-    state.parcels[idx] = { ...state.parcels[idx], status: 'stopped', isRunning: false };
-  }
+      // 2. Mettre à jour en mémoire
+      parcel.status = 'stopped';
+      parcel.isRunning = false;
+      const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
+      if (idx !== -1) {
+        state.parcels[idx] = { ...state.parcels[idx], status: 'stopped', isRunning: false };
+      }
 
-  // 3. Rafraîchir l'interface sans faire sauter la carte
-  renderMapMarkers(true);
-  updateTrackingInfo(parcel);
+      // 3. Rafraîchir l'interface sans faire sauter la carte
+      renderMapMarkers(true);
+      updateTrackingInfo(parcel);
 
-  // 4. Mettre à jour Supabase
-  try {
-    await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'stop',
-        note: 'Colis arrêté',
-        speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
-      }),
-    });
-  } catch (err) {
-    console.error('Erreur arrêt:', err);
-  }
+      // 4. Mettre à jour Supabase
+      try {
+        await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'stop',
+            reason: reason || 'Arrêt d\'exploitation',
+            note: reason ? `Arrêt : ${reason}` : 'Colis arrêté',
+            speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
+          }),
+        });
+      } catch (err) {
+        console.error('Erreur arrêt:', err);
+      }
+    }
+  );
 }
 
 // Bouton Reset : réinitialise la progression à 0% et replace le marqueur au départ

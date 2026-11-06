@@ -48,33 +48,44 @@ function normalizePublicParcel(row) {
 }
 
 async function fetchPublicParcelByTrackingNumber(trackingNumber) {
+  const cleanNumber = (trackingNumber || '').trim();
   const supabase = window.trackproSupabase;
   if (supabase) {
-    let { data, error } = await supabase.from('parcels').select('*').eq('trackingnumber', trackingNumber).maybeSingle();
-    if (error || !data) {
-      const fallback = await supabase.from('parcels').select('*').eq('trackingNumber', trackingNumber).maybeSingle();
-      if (!fallback.error && fallback.data) {
-        data = fallback.data;
-      }
-    }
-    if (!data) throw new Error('Colis introuvable avec ce numéro de suivi');
-
-    const parcel = normalizePublicParcel(data);
-    let eventsData = [];
     try {
-      const { data: evs } = await supabase.from('parcel_events').select('*').eq('parcelid', parcel.id).order('createdat', { ascending: true });
-      eventsData = evs || [];
-    } catch { /* ignore */ }
+      let { data, error } = await supabase.from('parcels').select('*').ilike('trackingnumber', cleanNumber).maybeSingle();
+      if (error || !data) {
+        const fallback = await supabase.from('parcels').select('*').eq('trackingNumber', cleanNumber).maybeSingle();
+        if (!fallback.error && fallback.data) {
+          data = fallback.data;
+        }
+      }
+      if (data) {
+        const parcel = normalizePublicParcel(data);
+        let eventsData = [];
+        try {
+          const { data: evs } = await supabase.from('parcel_events').select('*').eq('parcelid', parcel.id).order('createdat', { ascending: true });
+          eventsData = evs || [];
+        } catch { /* ignore */ }
 
-    return { parcel: { ...parcel, timeline: eventsData } };
+        return { parcel: { ...parcel, timeline: eventsData } };
+      }
+    } catch (sbErr) {
+      console.warn('Supabase fetch error, fallbacking to backend API:', sbErr);
+    }
   }
 
-  const response = await fetch(`${apiBase}/api/public/track/${encodeURIComponent(trackingNumber)}`);
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || 'Colis introuvable');
+  // Fallback vers l'API Express backend (si Supabase échoue ou en mode offline/local)
+  try {
+    const response = await fetch(`${apiBase}/api/public/track/${encodeURIComponent(cleanNumber)}`);
+    const data = await response.json();
+    if (response.ok && (data.parcel || data.id)) {
+      return data;
+    }
+  } catch (apiErr) {
+    console.warn('Backend API fetch error:', apiErr);
   }
-  return data;
+
+  throw new Error('Colis introuvable avec ce numéro de suivi');
 }
 
 function initializeClientPage() {
@@ -206,6 +217,15 @@ function updateTrackingResultSilently(parcel) {
   if (progressBar) progressBar.style.width = `${Math.round(progress)}%`;
   setText('resultProgressText', `${Math.round(progress)}%`);
   setText('resultDistanceRemaining', distanceRemaining > 0 ? `${distanceRemaining.toFixed(1)} km` : (parcel.status === 'delivered' ? '0 km' : '—'));
+  setText('resultSpeed', `${speed} km/h`);
+  setText('resultUpdatedAt', formatLastUpdate(parcel.updatedAt || parcel.createdAt));
+
+  const lastEvent = Array.isArray(parcel.timeline) && parcel.timeline.length ? parcel.timeline[parcel.timeline.length - 1] : null;
+  const statusReason = parcel.statusReason || (lastEvent && (lastEvent.reason || lastEvent.note)) || (parcel.status === 'paused' ? 'En pause' : 'En transit');
+  setText('resultStatusReason', statusReason);
+  if (lastEvent) {
+    setText('resultLastEvent', `${lastEvent.type || lastEvent.status || 'Mise à jour'} • ${lastEvent.note || lastEvent.reason || 'Aucune note'}`);
+  }
 
   // ETA : on recrée le countdown SEULEMENT si la vitesse/distance a changé significativement
   const newEtaSec = distanceRemaining > 0 && speed > 0 ? Math.ceil((distanceRemaining / speed) * 3600) : 0;
@@ -283,7 +303,7 @@ function displayTrackingResult(parcel) {
   setText('resultSpeed', `${speed} km/h`);
   setText('resultProgressText', `${Math.round(progress)}%`);
   setText('resultLastEvent', lastEvent ? `${lastEvent.type || lastEvent.status || 'Mise à jour'} • ${lastEvent.note || 'Aucune note'}` : "Colis en cours d'acheminement");
-  setText('resultStatusReason', statusReason);
+  setText('resultStatusReason', statusReason || 'En cours');
 
   const progressBar = document.getElementById('resultProgressBar');
   if (progressBar) progressBar.style.width = `${Math.round(progress)}%`;
@@ -502,12 +522,12 @@ async function trackColis() {
 
   await loadTrackingParcel(value, false);
 
-  // Polling toutes les 30s : sync silencieuse (uniquement barre de progression + carte)
+  // Polling toutes les 5s : sync fluide et silencieuse en arrière-plan
   trackingRefreshTimer = setInterval(() => {
     if (activeTrackingNumber) {
       loadTrackingParcel(activeTrackingNumber, true).catch(() => { });
     }
-  }, 30000);
+  }, 5000);
 }
 
 window.addEventListener('load', initializeClientPage);

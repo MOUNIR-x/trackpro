@@ -14,9 +14,9 @@
     };
 
     const url = normalizeSupabaseUrl(
-      source.SUPABASE_URL || source.NEXT_PUBLIC_SUPABASE_URL || '',
+      source.SUPABASE_URL || source.NEXT_PUBLIC_SUPABASE_URL || (typeof window !== 'undefined' && window.SUPABASE_URL) || 'https://bwwgtkoqcjuwvdnhzfdp.supabase.co',
     );
-    const key = (source.SUPABASE_ANON_KEY || source.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
+    const key = (source.SUPABASE_ANON_KEY || source.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || (typeof window !== 'undefined' && window.SUPABASE_ANON_KEY) || 'sb_publishable_wYAh1jCX7BSLQix0w08_vA_qm54o31Q').trim();
 
     return { url, key };
   }

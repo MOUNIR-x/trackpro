@@ -375,14 +375,14 @@ function initAdminPage() {
   bindNav();
   initMap();
   loadDashboard();
-  // Rafraîchissement partiel toutes les 30s (stats + liste, PAS la carte ni les markers)
+  // Rafraîchissement partiel toutes les 10s (stats + liste, PAS la carte ni les markers)
   if (!window.__trackproLiveRefresh) {
     window.__trackproLiveRefresh = setInterval(() => {
       // Ne pas recharger si une simulation RAF est en cours
       if (!state.simulationTimer) {
         silentRefreshStats().catch(() => {});
       }
-    }, 30000);
+    }, 10000);
   }
 }
 
@@ -1412,80 +1412,94 @@ function startSimulation() {
   });
 }
 
-// Bouton Pause : arrêt immédiat du colis sans bloquer
-async function pauseSimulation() {
+// Bouton Pause : demande le motif avant de mettre en pause
+function pauseSimulation() {
   const parcel = getSelectedParcel();
   if (!parcel) {
     alert('Sélectionnez un colis.');
     return;
   }
 
-  // 1. Arrêter immédiatement le timer
-  stopSimulation();
+  showReasonModal(
+    'Mettre en pause la livraison',
+    `Indiquez le motif de l'arrêt temporaire du colis ${parcel.trackingNumber} (contrôle douanier, pause chauffeur, trafic, etc.). Ce motif sera visible par le client.`,
+    async (reason) => {
+      // 1. Arrêter immédiatement la simulation
+      stopSimulation();
 
-  // 2. Mettre à jour en mémoire
-  parcel.status = 'paused';
-  parcel.isRunning = false;
-  const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
-  if (idx !== -1) {
-    state.parcels[idx] = { ...state.parcels[idx], status: 'paused', isRunning: false };
-  }
+      // 2. Mettre à jour en mémoire
+      parcel.status = 'paused';
+      parcel.isRunning = false;
+      const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
+      if (idx !== -1) {
+        state.parcels[idx] = { ...state.parcels[idx], status: 'paused', isRunning: false };
+      }
 
-  // 3. Rafraîchir l'interface sans faire sauter la carte
-  renderMapMarkers(true);
-  updateTrackingInfo(parcel);
+      // 3. Rafraîchir l'interface sans faire sauter la carte
+      renderMapMarkers(true);
+      updateTrackingInfo(parcel);
 
-  // 4. Mettre à jour Supabase
-  try {
-    await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'pause',
-        note: 'Colis mis en pause',
-        speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
-      }),
-    });
-  } catch (err) {
-    console.error('Erreur pause:', err);
-  }
+      // 4. Mettre à jour Supabase / API avec motif et destination
+      try {
+        await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'pause',
+            reason: reason || 'Pause opérationnelle',
+            note: reason ? `Pause : ${reason}` : 'Colis mis en pause',
+            speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
+          }),
+        });
+      } catch (err) {
+        console.error('Erreur pause:', err);
+      }
+    }
+  );
 }
 
-// Bouton Arrêter : arrêt immédiat du colis
-async function stopParcel() {
+// Bouton Arrêter : demande le motif avant d'arrêter
+function stopParcel() {
   const parcel = getSelectedParcel();
   if (!parcel) {
     alert('Sélectionnez un colis.');
     return;
   }
 
-  // 1. Arrêter immédiatement le timer
-  stopSimulation();
+  showReasonModal(
+    'Arrêter la livraison',
+    `Indiquez le motif de l'arrêt du colis ${parcel.trackingNumber} (panne, incident, fin de service, etc.). Ce motif sera visible par le client.`,
+    async (reason) => {
+      // 1. Arrêter immédiatement le timer
+      stopSimulation();
 
-  // 2. Mettre à jour en mémoire
-  parcel.status = 'stopped';
-  parcel.isRunning = false;
-  const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
-  if (idx !== -1) {
-    state.parcels[idx] = { ...state.parcels[idx], status: 'stopped', isRunning: false };
-  }
+      // 2. Mettre à jour en mémoire
+      parcel.status = 'stopped';
+      parcel.isRunning = false;
+      const idx = state.parcels.findIndex((p) => String(p.id) === String(parcel.id));
+      if (idx !== -1) {
+        state.parcels[idx] = { ...state.parcels[idx], status: 'stopped', isRunning: false };
+      }
 
-  // 3. Rafraîchir l'interface sans faire sauter la carte
-  renderMapMarkers(true);
-  updateTrackingInfo(parcel);
+      // 3. Rafraîchir l'interface sans faire sauter la carte
+      renderMapMarkers(true);
+      updateTrackingInfo(parcel);
 
-  // 4. Mettre à jour Supabase
-  try {
-    await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'stop',
-        note: 'Colis arrêté',
-        speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
-      }),
-    });
-  } catch (err) {
-    console.error('Erreur arrêt:', err);
-  }
+      // 4. Mettre à jour Supabase
+      try {
+        await apiFetch(`/api/admin/parcels/${parcel.id}/control`, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'stop',
+            reason: reason || 'Arrêt d\'exploitation',
+            note: reason ? `Arrêt : ${reason}` : 'Colis arrêté',
+            speed: Number(document.getElementById('simSpeed')?.value || parcel.simulationSpeed || 90),
+          }),
+        });
+      } catch (err) {
+        console.error('Erreur arrêt:', err);
+      }
+    }
+  );
 }
 
 // Bouton Reset : réinitialise la progression à 0% et replace le marqueur au départ
