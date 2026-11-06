@@ -6,6 +6,33 @@ let activeTrackingNumber = '';
 
 const apiBase = window.API_BASE || (window.location.protocol === 'file:' || (['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '3000' && window.location.port !== '') ? 'http://localhost:3000' : '');
 
+// Calcule la progression réelle écoulée même si l'onglet était fermé
+function computeClientOfflineProgress(parcel) {
+  const isRunning = Boolean(parcel.isRunning || parcel.isrunning);
+  if (!isRunning || parcel.status !== 'in_transit') {
+    return Math.max(0, Math.min(100, Number(parcel.progress) || 0));
+  }
+
+  const lastUpdate = new Date(parcel.updatedAt || parcel.createdAt).getTime();
+  if (!lastUpdate || isNaN(lastUpdate)) {
+    return Math.max(0, Math.min(100, Number(parcel.progress) || 0));
+  }
+
+  const now = Date.now();
+  const elapsedSeconds = Math.max(0, (now - lastUpdate) / 1000);
+  if (elapsedSeconds <= 1) {
+    return Math.max(0, Math.min(100, Number(parcel.progress) || 0));
+  }
+
+  const speed = Number(parcel.simulationSpeed) || 30;
+  const totalDistance = Number(parcel.distanceTotal) || 0;
+  if (totalDistance <= 0) return Math.max(0, Math.min(100, Number(parcel.progress) || 0));
+
+  const distanceMovedKm = (speed / 3600) * elapsedSeconds;
+  const increment = (distanceMovedKm / totalDistance) * 100;
+  return Math.max(0, Math.min(100, (Number(parcel.progress) || 0) + increment));
+}
+
 function normalizePublicParcel(row) {
   if (!row) return null;
   const rawRoute = row.routegeojson || row.routeGeoJson || row.route;
@@ -21,8 +48,9 @@ function normalizePublicParcel(row) {
   const rawDist = row.distancetotal !== undefined ? row.distancetotal : (row.distanceTotal !== undefined ? row.distanceTotal : 0);
   const rawLat = row.currentlatitude !== undefined && row.currentlatitude !== null ? Number(row.currentlatitude) : (row.currentLatitude !== undefined && row.currentLatitude !== null ? Number(row.currentLatitude) : null);
   const rawLng = row.currentlongitude !== undefined && row.currentlongitude !== null ? Number(row.currentlongitude) : (row.currentLongitude !== undefined && row.currentLongitude !== null ? Number(row.currentLongitude) : null);
+  const rawRunning = row.isrunning !== undefined ? (Number(row.isrunning) === 1 || row.isrunning === true) : Boolean(row.isRunning);
 
-  return {
+  const parcel = {
     id: Number(row.id),
     trackingNumber: row.trackingnumber || row.trackingNumber || '',
     recipientName: row.recipientname || row.recipientName || '',
@@ -39,12 +67,26 @@ function normalizePublicParcel(row) {
     currentLongitude: rawLng,
     progress: Number(rawProgress) || 0,
     simulationSpeed: Number(rawSpeed) || 30,
+    isRunning: rawRunning,
     routeGeoJson: parsedRoute,
     route: parsedRoute,
     distanceTotal: Number(rawDist) || 0,
     createdAt: row.createdat || row.createdAt || new Date().toISOString(),
     updatedAt: row.updatedat || row.updatedAt || new Date().toISOString(),
   };
+
+  if (parcel.isRunning && parcel.status === 'in_transit') {
+    const computed = computeClientOfflineProgress(parcel);
+    if (computed !== parcel.progress) {
+      parcel.progress = computed;
+      if (computed >= 100) {
+        parcel.status = 'delivered';
+        parcel.isRunning = false;
+      }
+    }
+  }
+
+  return parcel;
 }
 
 async function fetchPublicParcelByTrackingNumber(trackingNumber) {

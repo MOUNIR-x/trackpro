@@ -58,6 +58,30 @@ function getSessionUser() {
   }
 }
 
+// Calcule la progression réelle écoulée même si l'onglet était fermé
+function computeOfflineProgress(parcel) {
+  if (!parcel || !parcel.isRunning || parcel.status !== 'in_transit') {
+    return clampProgress(parcel ? parcel.progress : 0);
+  }
+
+  const lastUpdate = new Date(parcel.updatedAt || parcel.createdAt).getTime();
+  if (!lastUpdate || isNaN(lastUpdate)) {
+    return clampProgress(parcel.progress);
+  }
+
+  const now = Date.now();
+  const elapsedSeconds = Math.max(0, (now - lastUpdate) / 1000);
+  if (elapsedSeconds <= 1) {
+    return clampProgress(parcel.progress);
+  }
+
+  const speed = Math.max(10, Math.min(1000, Number(parcel.simulationSpeed) || 90));
+  const routeDistanceKm = Math.max(0.1, getRouteDistanceKm(parcel) || Number(parcel.distanceTotal) || 1);
+  const distanceMovedKm = (speed / 3600) * elapsedSeconds;
+  const increment = (distanceMovedKm / routeDistanceKm) * 100;
+  return clampProgress(clampProgress(parcel.progress) + increment);
+}
+
 function normalizeParcelRow(row) {
   if (!row) return null;
   const rawRoute = row.routegeojson || row.routeGeoJson || row.route;
@@ -75,7 +99,7 @@ function normalizeParcelRow(row) {
   const rawLng = row.currentlongitude !== undefined && row.currentlongitude !== null ? Number(row.currentlongitude) : (row.currentLongitude !== undefined && row.currentLongitude !== null ? Number(row.currentLongitude) : null);
   const rawRunning = row.isrunning !== undefined ? (Number(row.isrunning) === 1 || row.isrunning === true) : Boolean(row.isRunning);
 
-  return {
+  const parcel = {
     id: Number(row.id),
     trackingNumber: row.trackingnumber || row.trackingNumber || '',
     recipientName: row.recipientname || row.recipientName || '',
@@ -100,6 +124,23 @@ function normalizeParcelRow(row) {
     createdAt: row.createdat || row.createdAt || new Date().toISOString(),
     updatedAt: row.updatedat || row.updatedAt || new Date().toISOString(),
   };
+
+  // Si le colis est en route, calculer son avancement réel depuis la dernière mise à jour
+  if (parcel.isRunning && parcel.status === 'in_transit') {
+    const computed = computeOfflineProgress(parcel);
+    if (computed !== parcel.progress) {
+      parcel.progress = computed;
+      const pt = routePointAtProgress(parcel, computed);
+      parcel.currentLatitude = pt[0];
+      parcel.currentLongitude = pt[1];
+      if (computed >= 100) {
+        parcel.status = 'delivered';
+        parcel.isRunning = false;
+      }
+    }
+  }
+
+  return parcel;
 }
 
 async function supabaseApiFetch(path, options = {}) {
@@ -461,7 +502,17 @@ function showSection(section) {
   if (pageTitle) pageTitle.textContent = titles[section] || 'Tableau de bord';
 
   if (section === 'map' && state.map) {
-    setTimeout(() => state.map.invalidateSize(), 150);
+    setTimeout(() => {
+      state.map.invalidateSize();
+      const parcel = getSelectedParcel();
+      if (parcel) {
+        renderHighlightedRoute(parcel);
+        const boundsPoints = parseRouteCoordinates(parcel);
+        if (boundsPoints.length >= 2) {
+          state.map.fitBounds(asLeafletLatLngCoordinates(boundsPoints), { padding: [35, 35] });
+        }
+      }
+    }, 150);
   }
 }
 
@@ -939,6 +990,7 @@ function applyProgressToMap(parcel, nextProgress, nextPoint) {
 // --- RAF simulation helpers (used by startSimulation below) ---
 let simRAF = null;
 let lastTimestamp = null;
+let lastPatchTime = 0;
 
 function simulationStep(ts) {
   if (!state.simulationTimer) return;
@@ -970,17 +1022,22 @@ function simulationStep(ts) {
 
   applyProgressToMap(parcel, nextProgress, nextPoint);
 
-  apiFetch(`/api/admin/parcels/${parcel.id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      status: 'in_transit',
-      progress: nextProgress,
-      currentLatitude: nextPoint[0],
-      currentLongitude: nextPoint[1],
-      isRunning: 1,
-      simulationSpeed: speed,
-    }),
-  }).catch(() => {});
+  // Sauvegarder dans Supabase/DB toutes les 2 secondes (sans bloquer ni spammer)
+  const now = Date.now();
+  if (now - lastPatchTime > 2000) {
+    lastPatchTime = now;
+    apiFetch(`/api/admin/parcels/${parcel.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status: 'in_transit',
+        progress: nextProgress,
+        currentLatitude: nextPoint[0],
+        currentLongitude: nextPoint[1],
+        isRunning: 1,
+        simulationSpeed: speed,
+      }),
+    }).catch(() => {});
+  }
 
   simRAF = requestAnimationFrame(simulationStep);
 }
