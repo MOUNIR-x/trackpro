@@ -1267,14 +1267,26 @@ async function calculateRoute() {
 
     if (data.routes && data.routes[0]) {
       const route = data.routes[0];
-      coordinates = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-      distanceKm = Math.round((route.distance / 1000) * 10) / 10;
-      durationMinutes = Math.round(route.duration / 60);
+      const rawCoords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+
+      // Vérifier si le tracé OSRM commence et se termine raisonnablement près des points demandés (< 150 km)
+      // Car OSRM driving "saute" parfois des milliers de km si aucune route terrestre n'existe (ex: Somalie -> Europe)
+      const startDist = Math.hypot(rawCoords[0][0] - state.startPoint.lat, rawCoords[0][1] - state.startPoint.lng) * 111;
+      const endDist = Math.hypot(rawCoords[rawCoords.length - 1][0] - state.endPoint.lat, rawCoords[rawCoords.length - 1][1] - state.endPoint.lng) * 111;
+
+      if (startDist < 200 && endDist < 200) {
+        coordinates = rawCoords;
+        distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+        durationMinutes = Math.round(route.duration / 60);
+      }
     }
   } catch { /* OSRM fail, fallback grand cercle */ }
 
   if (!coordinates.length) {
-    const gc = generateRoadLikeRoute(state.startPoint, state.endPoint, 40);
+    const gc = generateRoadLikeRoute(state.startPoint, state.endPoint, 50);
+    // Assurer que le premier point est EXACTEMENT le départ et le dernier l'arrivée
+    gc[0] = [Number(state.startPoint.lat.toFixed(5)), Number(state.startPoint.lng.toFixed(5))];
+    gc[gc.length - 1] = [Number(state.endPoint.lat.toFixed(5)), Number(state.endPoint.lng.toFixed(5))];
     coordinates = gc;
     distanceKm = Math.round((generateGreatCirclePoints(state.startPoint, state.endPoint, 2).distanceKm || 0) * 10) / 10;
     durationMinutes = Math.round((distanceKm / 80) * 60);
