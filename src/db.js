@@ -351,6 +351,80 @@ async function createParcel(db, parcel, createdBy = null) {
   } = parcel;
 
   const routeGeoJson = route ? JSON.stringify(route) : null;
+
+  const result = await run(
+    db,
+    `INSERT INTO parcels (
+        trackingNumber, recipientName, recipientPhone, recipientEmail,
+        deliveryAddress, senderName, company, description, origin,
+        destination, status, currentLatitude, currentLongitude,
+        progress, simulationSpeed, isRunning, routeGeoJson,
+        distanceTotal, createdBy
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      trackingNumber,
+      recipientName,
+      recipientPhone,
+      recipientEmail,
+      deliveryAddress,
+      senderName,
+      company,
+      description,
+      origin,
+      destination,
+      status,
+      currentLatitude ?? null,
+      currentLongitude ?? null,
+      progress,
+      simulationSpeed,
+      isRunning ? 1 : 0,
+      routeGeoJson,
+      distanceTotal,
+      createdBy,
+    ]
+  );
+
+  if (!result.id) {
+    throw new Error('Failed to insert parcel – no ID returned');
+  }
+
+  const created = await get(db, `SELECT * FROM parcels WHERE id = ?`, [result.id]);
+
+  if (created) {
+    await appendParcelEvent(db, created.id, {
+      type: 'created',
+      status,
+      latitude: currentLatitude ?? null,
+      longitude: currentLongitude ?? null,
+      note: `Colis créé avec référence ${trackingNumber}`,
+      createdBy,
+    });
+  }
+
+  return created;
+}
+  const {
+    trackingNumber,
+    recipientName,
+    recipientPhone,
+    recipientEmail,
+    deliveryAddress,
+    senderName,
+    company,
+    description,
+    origin,
+    destination,
+    status = 'pending',
+    currentLatitude,
+    currentLongitude,
+    progress = 0,
+    simulationSpeed = 60,
+    isRunning = 0,
+    route,
+    distanceTotal = 0,
+  } = parcel;
+
+  const routeGeoJson = route ? JSON.stringify(route) : null;
   const result = await run(
     db,
     `INSERT INTO parcels (

@@ -916,7 +916,99 @@ function applyProgressToMap(parcel, nextProgress, nextPoint) {
   if (updatedParcel) updateTrackingInfo(updatedParcel);
 }
 
-async function advanceSimulationTick() {
+// --- Simulation loop using requestAnimationFrame for real‑time physics ---
+let simRAF = null;
+let lastTimestamp = null;
+
+function simulationStep(timestamp) {
+  if (!state.simulationTimer) {
+    // stopped – clean up
+    return;
+  }
+  if (lastTimestamp === null) lastTimestamp = timestamp;
+  const deltaSec = (timestamp - lastTimestamp) / 1000; // seconds elapsed since last frame
+  lastTimestamp = timestamp;
+
+  const parcel = getSelectedParcel();
+  if (!parcel) return;
+
+  // pause conditions
+  if (parcel.status !== 'in_transit' && !parcel.isRunning) {
+    stopSimulation();
+    return;
+  }
+
+  const currentProgress = clampProgress(parcel.progress);
+  if (currentProgress >= 100) {
+    stopSimulation();
+    // mark delivered in DB
+    apiFetch(`/api/admin/parcels/${parcel.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'delivered', progress: 100, isRunning: 0 })
+    }).catch(() => {});
+    loadDashboard();
+    return;
+  }
+
+  const speed = Math.max(10, Math.min(1000, Number(parcel.simulationSpeed) || 90));
+  const routeDistanceKm = Math.max(0.1, getRouteDistanceKm(parcel) || Number(parcel.distanceTotal) || 1);
+  const distanceMovedKm = (speed / 3600) * deltaSec; // distance moved during elapsed seconds
+  const increment = (distanceMovedKm / routeDistanceKm) * 100;
+  const nextProgress = clampProgress(currentProgress + increment);
+  const nextPoint = routePointAtProgress(parcel, nextProgress);
+
+  applyProgressToMap(parcel, nextProgress, nextPoint);
+
+  // persist to DB
+  apiFetch(`/api/admin/parcels/${parcel.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status: 'in_transit',
+      progress: nextProgress,
+      currentLatitude: nextPoint[0],
+      currentLongitude: nextPoint[1],
+      isRunning: 1,
+      simulationSpeed: speed,
+    })
+  }).catch(() => {});
+
+  // schedule next frame
+  simRAF = requestAnimationFrame(simulationStep);
+}
+
+function startSimulation() {
+  const selectedParcel = getSelectedParcel();
+  if (!selectedParcel) {
+    alert('Sélectionnez un colis.');
+    return;
+  }
+
+  stopSimulation(); // ensure previous loop cleared
+
+  selectedParcel.status = 'in_transit';
+  selectedParcel.isRunning = true;
+  const idx = state.parcels.findIndex(p => String(p.id) === String(selectedParcel.id));
+  if (idx !== -1) {
+    state.parcels[idx] = { ...state.parcels[idx], status: 'in_transit', isRunning: true };
+  }
+  renderMapMarkers(true);
+  updateTrackingInfo(selectedParcel);
+
+  // start RAF loop
+  state.simulationTimer = true;
+  lastTimestamp = null;
+  simRAF = requestAnimationFrame(simulationStep);
+}
+
+function stopSimulation() {
+  state.simulationTimer = false;
+  if (simRAF) cancelAnimationFrame(simRAF);
+  simRAF = null;
+  lastTimestamp = null;
+}
+
+// keep existing pauseSimulation (calls stopSimulation)
+
   const parcel = getSelectedParcel();
   if (!parcel) return;
 
