@@ -194,6 +194,64 @@ function formatDuration(minutes) {
   return `${mins} min`;
 }
 
+// --- Mise à jour silencieuse : ne touche que les éléments qui changent vraiment ---
+function updateTrackingResultSilently(parcel) {
+  const progress = Math.max(0, Math.min(100, Number(parcel.progress) || 0));
+  const totalDistance = Number(parcel.distanceTotal) || 0;
+  const distanceRemaining = Math.max(0, totalDistance * (1 - progress / 100));
+  const speed = Number(parcel.simulationSpeed) || 30;
+
+  // Barre de progression (smooth)
+  const progressBar = document.getElementById('resultProgressBar');
+  if (progressBar) progressBar.style.width = `${Math.round(progress)}%`;
+  setText('resultProgressText', `${Math.round(progress)}%`);
+  setText('resultDistanceRemaining', distanceRemaining > 0 ? `${distanceRemaining.toFixed(1)} km` : (parcel.status === 'delivered' ? '0 km' : '—'));
+
+  // ETA : on recrée le countdown SEULEMENT si la vitesse/distance a changé significativement
+  const newEtaSec = distanceRemaining > 0 && speed > 0 ? Math.ceil((distanceRemaining / speed) * 3600) : 0;
+  const diff = Math.abs(newEtaSec - (window._etaLastSec || 0));
+  // On resynchronise si décalage > 10s (nouveau poll avec vraies données)
+  if (diff > 10 || window._etaLastSec === undefined) {
+    window._etaLastSec = newEtaSec;
+    if (window.etaCountdownInterval) {
+      clearInterval(window.etaCountdownInterval);
+      window.etaCountdownInterval = null;
+    }
+    if (parcel.status === 'delivered') {
+      setText('resultEta', 'Livré');
+    } else if (newEtaSec > 0) {
+      let remaining = newEtaSec;
+      const updateEta = () => {
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        setText('resultEta', `ETA ${mins}m ${secs < 10 ? '0' : ''}${secs}s`);
+      };
+      updateEta();
+      window.etaCountdownInterval = setInterval(() => {
+        if (remaining <= 0) {
+          clearInterval(window.etaCountdownInterval);
+          window.etaCountdownInterval = null;
+          setText('resultEta', 'ETA —');
+          return;
+        }
+        remaining--;
+        window._etaLastSec = remaining;
+        updateEta();
+      }, 1000);
+    } else {
+      setText('resultEta', 'ETA —');
+    }
+  }
+
+  // Status badge (seulement si changé)
+  const badge = document.getElementById('resultStatus');
+  if (badge && badge.dataset.status !== parcel.status) {
+    badge.textContent = statusLabel(parcel.status);
+    badge.className = `status-badge ${statusClass(parcel.status)}`;
+    badge.dataset.status = parcel.status;
+  }
+}
+
 function displayTrackingResult(parcel) {
   const resultSection = document.getElementById('trackingResult');
   if (resultSection) resultSection.style.display = 'block';
@@ -202,6 +260,7 @@ function displayTrackingResult(parcel) {
   if (badge) {
     badge.textContent = statusLabel(parcel.status);
     badge.className = `status-badge ${statusClass(parcel.status)}`;
+    badge.dataset.status = parcel.status;
   }
 
   const progress = Math.max(0, Math.min(100, Number(parcel.progress) || 0));
@@ -223,40 +282,15 @@ function displayTrackingResult(parcel) {
   setText('resultDistanceRemaining', distanceRemaining > 0 ? `${distanceRemaining.toFixed(1)} km` : (parcel.status === 'delivered' ? '0 km' : '—'));
   setText('resultSpeed', `${speed} km/h`);
   setText('resultProgressText', `${Math.round(progress)}%`);
-  // Real-time ETA countdown based on speed and remaining distance
-  if (window.etaCountdownInterval) {
-    clearInterval(window.etaCountdownInterval);
-    window.etaCountdownInterval = null;
-  }
-  if (parcel.status === 'delivered') {
-    setText('resultEta', 'Livré');
-  } else if (etaMinutes > 0) {
-    const totalSeconds = Math.ceil((distanceRemaining / Math.max(1, speed)) * 3600);
-    let remaining = totalSeconds;
-    const updateEta = () => {
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      setText('resultEta', `ETA ${mins}m ${secs}s`);
-    };
-    updateEta();
-    window.etaCountdownInterval = setInterval(() => {
-      if (remaining <= 0) {
-        clearInterval(window.etaCountdownInterval);
-        window.etaCountdownInterval = null;
-        setText('resultEta', 'ETA —');
-        return;
-      }
-      remaining--;
-      updateEta();
-    }, 1000);
-  } else {
-    setText('resultEta', 'ETA —');
-  }
-  setText('resultLastEvent', lastEvent ? `${lastEvent.type || lastEvent.status || 'Mise à jour'} • ${lastEvent.note || 'Aucune note'}` : 'Colis en cours d\'acheminement');
+  setText('resultLastEvent', lastEvent ? `${lastEvent.type || lastEvent.status || 'Mise à jour'} • ${lastEvent.note || 'Aucune note'}` : "Colis en cours d'acheminement");
   setText('resultStatusReason', statusReason);
 
   const progressBar = document.getElementById('resultProgressBar');
   if (progressBar) progressBar.style.width = `${Math.round(progress)}%`;
+
+  // Countdown ETA (plein affichage initial)
+  window._etaLastSec = undefined; // force recréation au premier affichage
+  updateTrackingResultSilently(parcel);
 
   const timeline = document.getElementById('trackingTimeline');
   if (timeline) {
@@ -439,11 +473,14 @@ async function loadTrackingParcel(trackingNumber, isRefresh = false) {
     if (!parcel) throw new Error('Colis introuvable');
 
     activeTrackingNumber = trackingNumber;
-    displayTrackingResult(parcel);
 
     if (isRefresh) {
+      // Refresh silencieux : uniquement barre de progression + marqueur carte
+      updateTrackingResultSilently(parcel);
       updateClientMap(parcel);
     } else {
+      // Premier affichage : tout afficher
+      displayTrackingResult(parcel);
       initClientMap(parcel);
     }
   } catch (error) {
@@ -465,12 +502,12 @@ async function trackColis() {
 
   await loadTrackingParcel(value, false);
 
-  // Polling toutes les 1s pour synchronisation temps réel exacte avec l'admin
+  // Polling toutes les 30s : sync silencieuse (uniquement barre de progression + carte)
   trackingRefreshTimer = setInterval(() => {
     if (activeTrackingNumber) {
       loadTrackingParcel(activeTrackingNumber, true).catch(() => { });
     }
-  }, 1000);
+  }, 30000);
 }
 
 window.addEventListener('load', initializeClientPage);

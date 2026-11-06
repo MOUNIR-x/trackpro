@@ -710,3 +710,19 @@ body {
     min-height: 300px;
   }
 }
+
+/* ETA countdown - discret comme les grandes apps (DHL, FedEx) */
+#resultEta {
+  opacity: 0.4;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  transition: opacity 0.4s;
+  color: #737373;
+}
+#resultEta:hover { opacity: 1; }
+
+/* Progress bar - transition douce sans clignotement */
+#resultProgressBar {
+  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+

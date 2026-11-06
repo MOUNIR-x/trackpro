@@ -375,15 +375,32 @@ function initAdminPage() {
   bindNav();
   initMap();
   loadDashboard();
-  // Rafraîchissement léger des stats et liste (pas la carte) toutes les 5s
+  // Rafraîchissement partiel toutes les 30s (stats + liste, PAS la carte ni les markers)
   if (!window.__trackproLiveRefresh) {
     window.__trackproLiveRefresh = setInterval(() => {
-      // Ne pas recharger si une simulation est en cours (le tick s'en charge)
+      // Ne pas recharger si une simulation RAF est en cours
       if (!state.simulationTimer) {
-        loadDashboard().catch(() => {});
+        silentRefreshStats().catch(() => {});
       }
-    }, 5000);
+    }, 30000);
   }
+}
+
+// Refresh silencieux : stats + liste de colis sans toucher la carte
+async function silentRefreshStats() {
+  try {
+    const [statsData, parcelsData] = await Promise.all([
+      apiFetch('/api/admin/stats'),
+      apiFetch('/api/admin/parcels'),
+    ]);
+    state.parcels = parcelsData.parcels || [];
+    renderStats(statsData.stats || {});
+    renderRecentColis();
+    renderColisList();
+    renderActivity();
+    renderSelectOptions();
+    // Ne pas appeler renderMapMarkers() ici → évite le rechargement visible de la carte
+  } catch { /* silencieux */ }
 }
 
 function renderUserProfile() {
